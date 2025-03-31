@@ -17,17 +17,92 @@ Including another URLconf
 from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include 
-from django.contrib import admin
+from django.shortcuts import redirect
 from django.conf.urls.static import static
 from Accounts.views import generate_sales_invoice_pdf
 from Accounts.views import dashboard
+from django.http import HttpResponse
+
+def homepage(request):
+    """Simple homepage with a redirect to admin"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Star Mango</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                margin: 0;
+                padding: 0;
+                background-color: #f7f9fc;
+                color: #333;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 30px;
+                background-color: white;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            h1 {
+                color: #4CAF50;
+                margin-bottom: 20px;
+            }
+            p {
+                margin-bottom: 25px;
+                color: #555;
+            }
+            .btn {
+                display: inline-block;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                padding: 12px 25px;
+                border-radius: 5px;
+                text-decoration: none;
+                font-size: 16px;
+                transition: background 0.3s ease;
+            }
+            .btn:hover {
+                background: #3e8e41;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Welcome to Star Mango</h1>
+            <p>Mango Management System</p>
+            <a href="/admin/" class="btn">Go to Admin Dashboard</a>
+        </div>
+    </body>
+    </html>
+    """
+    return HttpResponse(html)
+
+# Redirect to admin page
+def redirect_to_admin(request):
+    return redirect('/admin/')
 
 urlpatterns = [
+    path('', homepage, name='home'),  # Root URL shows homepage
+    path('admin-redirect/', redirect_to_admin, name='admin-redirect'),  # Redirect to admin
     path('admin/dashboard/', dashboard, name='admin-dashboard'),
     path('admin/', admin.site.urls),
     path('accounts/', include ('Accounts.urls')),
     path('sales_invoice/<int:invoice_id>/pdf/', generate_sales_invoice_pdf, name='generate_sales_invoice_pdf'),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media files in production
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Serve static files in production
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

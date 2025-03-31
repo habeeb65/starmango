@@ -23,6 +23,7 @@ from django.contrib.staticfiles.finders import find
 import base64
 from django.contrib.admin.views.decorators import staff_member_required
 from .models import PurchaseInvoice, SalesInvoice, Expense, Damages, PurchaseVendor, Customer, Packaging_Invoice, PurchaseProduct
+from django.urls import reverse
 
 
 # Font and Logo Setup
@@ -697,3 +698,26 @@ def generate_packaging_invoice_pdf(request, invoice_id):
     response.write(buffer.read())
     buffer.close()
     return response
+
+
+def homepage(request):
+    """Displays a simple homepage with a link to the admin."""
+    admin_url = reverse('admin:index') # Get the URL for the admin index
+    html_content = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>StarMango</title>
+        <style>
+            body {{ font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }}
+            a.button {{ padding: 15px 30px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-size: 1.2em; }}
+            a.button:hover {{ background-color: #45a049; }}
+        </style>
+    </head>
+    <body>
+        <h1>Welcome to StarMango</h1>
+        <a href="{admin_url}" class="button">Go to Admin Panel</a>
+    </body>
+    </html>
+    '''
+    return HttpResponse(html_content)

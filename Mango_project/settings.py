@@ -53,7 +53,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Mango_project.urls'
 
 TEMPLATES = [
     {
@@ -143,3 +142,4 @@ JAZZMIN_SETTINGS = {
         }]
     },
 }
+ROOT_URLCONF = 'Mango_project.urls'
