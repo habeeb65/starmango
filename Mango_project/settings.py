@@ -30,6 +30,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['habeeb321.pythonanywhere.com', '127.0.0.1', 'localhost']
 
 
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -84,7 +85,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-        
+
     }
 }
 
@@ -129,6 +130,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
@@ -159,10 +161,10 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Welcome to Star Mango Supplies Admin",
     # Copyright on the footer
     "copyright": "Star Mango Ltd",
-    
+
     # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
     "user_avatar": None,
-    
+
     # Top menu
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
@@ -170,14 +172,14 @@ JAZZMIN_SETTINGS = {
         {"name": "Vendor Summary", "url": "/accounts/vendor-summary/"},
         {"name": "Customer Summary", "url": "/accounts/customer-summary/"},
     ],
-    
+
     # Custom links to append to app groups, keyed on app name
     "custom_links": {
         "Accounts": [
             {"name": "Dashboard", "url": "admin-dashboard", "icon": "fas fa-chart-line"}
         ]
     },
-    
+
     # Override app/model ordering by 3 ways
     "order_with_respect_to": ["Accounts", "auth"],
     "custom_app_order": ["Accounts", "auth"],
@@ -194,17 +196,17 @@ JAZZMIN_SETTINGS = {
             "Damages",
         ],
     },
-    
+
     # Specify an app to hide all of its models
     "hide_apps": [],
-    
+
     # Specify models to hide
     "hide_models": [],
-    
+
     # Specify how models are ordered
     "show_sidebar": True,
     "navigation_expanded": False,
-    
+
     # Icons
     "icons": {
         "auth": "fas fa-users-cog",
@@ -218,7 +220,7 @@ JAZZMIN_SETTINGS = {
         "Accounts.Expense": "fas fa-money-bill",
         "Accounts.Damages": "fas fa-exclamation-triangle"
     },
-    
+
     # UI Settings
     "custom_css": "css/custom_admin.css",
     "custom_js": None,
