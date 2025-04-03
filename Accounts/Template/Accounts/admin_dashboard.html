@@ -211,14 +211,14 @@
             <i class="fas fa-shopping-cart card-icon purchases"></i>
             <div class="card-title">Total Purchases</div>
             <div class="card-value purchases">₹{{ total_purchase|floatformat:2 }}</div>
-            <div class="card-subtitle">For selected period</div>
+            <div class="card-subtitle">After 2% cash cutting</div>
         </div>
         
         <div class="card">
             <i class="fas fa-cash-register card-icon sales"></i>
             <div class="card-title">Total Sales</div>
             <div class="card-value sales">₹{{ total_sales|floatformat:2 }}</div>
-            <div class="card-subtitle">For selected period</div>
+            <div class="card-subtitle">Final invoice amount with packaging</div>
         </div>
         
         <div class="card">
@@ -232,7 +232,7 @@
             <i class="fas fa-chart-line card-icon profit"></i>
             <div class="card-title">Net Profit</div>
             <div class="card-value profit">₹{{ profit_loss|floatformat:2 }}</div>
-            <div class="card-subtitle">For selected period</div>
+            <div class="card-subtitle">Based on full invoice totals</div>
         </div>
     </div>
     
@@ -250,6 +250,20 @@
             <div class="card-value packaging">₹{{ total_packaging_cost|floatformat:2 }}</div>
             <div class="card-subtitle">For selected period</div>
         </div>
+
+        <div class="card">
+            <i class="fas fa-percentage card-icon" style="color: #E91E63;"></i>
+            <div class="card-title">Vendor Commission</div>
+            <div class="card-value" style="color: #E91E63;">₹{{ vendor_commission_total|floatformat:2 }}</div>
+            <div class="card-subtitle">2% cash cutting</div>
+        </div>
+        
+        <div class="card">
+            <i class="fas fa-percentage card-icon" style="color: #9C27B0;"></i>
+            <div class="card-title">Customer Commission</div>
+            <div class="card-value" style="color: #9C27B0;">₹{{ customer_commission_total|floatformat:2 }}</div>
+            <div class="card-subtitle">Sales commission</div>
+        </div>
     </div>
     
     <!-- Due Sections -->
@@ -259,7 +273,7 @@
         <div class="dues-card">
             <h3 class="dues-title">
                 <i class="fas fa-users"></i>
-                Vendor Dues
+                Top 3 Vendor Dues
             </h3>
             <ul class="dues-list">
                 {% for vendor in highest_due_vendors %}
@@ -276,7 +290,7 @@
         <div class="dues-card">
             <h3 class="dues-title">
                 <i class="fas fa-user-friends"></i>
-                Customer Dues
+                Top 3 Customer Dues
             </h3>
             <ul class="dues-list">
                 {% for customer in highest_due_customers %}

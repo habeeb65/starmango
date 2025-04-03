@@ -41,8 +41,7 @@ pdfmetrics.registerFont(TTFont('NotoSans-Bold', BOLD_FONT_PATH))
 @staff_member_required
 def admin_dashboard(request):
     """
-    Admin dashboard view that follows the same pattern as vendor_purchase_summary
-    with date filtering capabilities
+    Admin dashboard view with date filtering capabilities
     """
     # Get filter parameters
     from_date_str = request.GET.get('from_date')
@@ -66,8 +65,12 @@ def admin_dashboard(request):
     if to_date:
         purchase_invoices = purchase_invoices.filter(date__lte=to_date)
     
-    # Calculate total purchases
-    total_purchase = purchase_invoices.aggregate(total=Sum('net_total'))['total'] or Decimal('0')
+    # Calculate total purchases (using net_total directly - not subtracting commission)
+    total_purchase_before_commission = purchase_invoices.aggregate(total=Sum('net_total'))['total'] or Decimal('0')
+    commission_rate = Decimal('0.02')  # 2% commission
+    # Calculate net amount after cash cutting (2% commission)
+    vendor_commission_total = total_purchase_before_commission * commission_rate
+    total_purchase = total_purchase_before_commission - vendor_commission_total
 
     # Filter sales invoices by date if provided
     sales_invoices = SalesInvoice.objects.all()
@@ -76,9 +79,11 @@ def admin_dashboard(request):
     if to_date:
         sales_invoices = sales_invoices.filter(invoice_date__lte=to_date)
     
-    # Calculate total sales
-    sales_with_totals = sales_invoices.annotate(computed_total=Sum('sales_products__total'))
-    total_sales = sum(s.computed_total or 0 for s in sales_with_totals)
+    # Calculate total sales using net_total_after_packaging (final invoice total including crates)
+    total_sales_before_commission = sum(invoice.net_total or Decimal('0') for invoice in sales_invoices)
+    # Customer commission is equal to the total gross weight (₹1 per kg)
+    customer_commission_total = sum(invoice.total_gross_weight or Decimal('0') for invoice in sales_invoices)
+    total_sales = sum(invoice.net_total_after_packaging or Decimal('0') for invoice in sales_invoices)
 
     # Filter expenses by date if provided
     expenses = Expense.objects.all()
@@ -87,7 +92,7 @@ def admin_dashboard(request):
     if to_date:
         expenses = expenses.filter(date__lte=to_date)
     
-    # Calculate total expenses
+    # Calculate total expenses - expenses are not affected by commission
     total_expenses = expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
     # Filter damages by date if provided
@@ -97,19 +102,19 @@ def admin_dashboard(request):
     if to_date:
         damages = damages.filter(date__lte=to_date)
     
-    # Calculate total damages
+    # Calculate total damages - damages are not affected by commission
     total_damages = damages.aggregate(total=Sum('amount_loss'))['total'] or Decimal('0')
 
     # Get all packaging invoices - Packaging_Invoice doesn't have a date field to filter
     packaging_invoices = Packaging_Invoice.objects.all()
     
-    # Calculate total packaging cost
+    # Calculate total packaging cost - packaging is not affected by commission
     total_packaging_cost = sum([pi.packaging_total for pi in packaging_invoices])
 
-    # Profit and Loss Calculation
-    profit_loss = total_sales - (total_purchase + total_expenses + total_packaging_cost + total_damages)
+    # Profit and Loss Calculation - using the full values
+    profit_loss = total_sales - (total_purchase + total_expenses + total_damages)
 
-    # Highest Due Customers
+    # Highest Due Customers - no changes needed if these already account for commission
     highest_due_customers = Customer.objects.annotate(
         total_sales_amount=Sum('sales_invoices__sales_products__total'),
         total_paid_amount=Sum('sales_invoices__payments__amount')
@@ -118,9 +123,9 @@ def admin_dashboard(request):
             F('total_sales_amount') - F('total_paid_amount'),
             output_field=DecimalField()
         )
-    ).order_by('-due')[:5]
+    ).order_by('-due')[:3]  # Show only top 3 customers with highest dues
 
-    # Highest Due Vendors
+    # Highest Due Vendors - use full amount
     highest_due_vendors = PurchaseVendor.objects.annotate(
         total_purchase_amount=Sum('invoices__net_total'),
         total_paid_amount=Sum('invoices__payments__amount')
@@ -129,7 +134,7 @@ def admin_dashboard(request):
             F('total_purchase_amount') - F('total_paid_amount'),
             output_field=DecimalField()
         )
-    ).order_by('-due')[:5]
+    ).order_by('-due')[:3]  # Show only top 3 vendors with highest dues
 
     # Available lots - fetch all and filter in Python since available_quantity is a property
     all_lots = PurchaseInvoice.objects.prefetch_related('purchase_products', 'sales_lots').order_by('-date')[:50]  # Fetch recent ones
@@ -147,13 +152,17 @@ def admin_dashboard(request):
         'available_lots': available_lots,
         'from_date': from_date_str,
         'to_date': to_date_str,
+        'vendor_commission_total': vendor_commission_total,
+        'customer_commission_total': customer_commission_total,
     }
     return render(request, 'Accounts/admin_dashboard.html', context)
 
 @staff_member_required
 def dashboard(request):
     # Total Purchases
-    total_purchase = PurchaseInvoice.objects.aggregate(total=Sum('net_total'))['total'] or Decimal('0')
+    total_purchase_before_commission = PurchaseInvoice.objects.aggregate(total=Sum('net_total'))['total'] or Decimal('0')
+    commission_rate = Decimal('0.02')  # 2% commission
+    total_purchase = total_purchase_before_commission - (total_purchase_before_commission * commission_rate)
 
     # Total Sales
     sales_with_totals = SalesInvoice.objects.annotate(
@@ -181,7 +190,7 @@ def dashboard(request):
         F('total_sales_amount') - F('total_paid_amount'),
         output_field=DecimalField()
     )
-).order_by('-due')[:5]
+).order_by('-due')[:3]
 
     # Highest Due Vendors
     highest_due_vendors = PurchaseVendor.objects.annotate(
@@ -192,7 +201,7 @@ def dashboard(request):
         F('total_purchase_amount') - F('total_paid_amount'),
         output_field=DecimalField()
     )
-).order_by('-due')[:5]
+).order_by('-due')[:3]
 
     # Available lots - fetch all and filter in Python since available_quantity is a property
     all_lots = PurchaseInvoice.objects.prefetch_related('purchase_products', 'sales_lots').order_by('-date')[:50]  # Fetch recent ones

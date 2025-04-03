@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.urls import path
 from django.utils.html import format_html
 from django.http import JsonResponse
+from django.db import models
 
 
 admin.site.site_header = "Star Mango Supplies Korutla"   # Header displayed at the top of the admin
@@ -17,17 +18,29 @@ class PurchaseProductInline(admin.TabularInline):
     extra = 1  # Number of empty forms to show initially
     readonly_fields = ('total', 'loading_unloading', 'serial_number')  # Make calculated fields read-only
     fields = ('serial_number', 'product', 'quantity', 'price', 'damage', 'discount', 'rotten', 'loading_unloading', 'total')
+    ordering = ('serial_number',)  # Order products by serial number
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        # Annotate with serial number based on the queryset ordering
-        for index, obj in enumerate(queryset, start=1):
-            obj.serial_number = index
         return queryset
 
     def serial_number(self, obj):
-        return obj.serial_number
+        if obj.pk:
+            return obj.serial_number
+        else:
+            # Predict the next serial number for new items
+            if hasattr(obj, 'invoice') and obj.invoice and obj.invoice.pk:
+                existing_products = PurchaseProduct.objects.filter(invoice=obj.invoice)
+                if existing_products.exists():
+                    max_serial = existing_products.aggregate(models.Max('serial_number'))['serial_number__max'] or 0
+                    return max_serial + 1
+                return 1  # First product for this invoice
+        return "-"  # Fallback if we can't predict
     serial_number.short_description = "Serial Number"
+    
+    class Media:
+        js = ('admin/js/purchase_calculation.js',)
+
 # Inline for Payments within an Invoice
 class PaymentInline(admin.TabularInline):
     model = Payment
@@ -88,9 +101,27 @@ class PurchaseInvoiceAdmin(admin.ModelAdmin):
         return format_html('<a class="button" href="{}" target="_blank">Print Invoice</a>', url)
     print_invoice.short_description = "Print Invoice"
 
+    def save_model(self, request, obj, form, change):
+        """Override save_model to ensure calculations are performed properly"""
+        super().save_model(request, obj, form, change)
+        # After saving, update the net_total once more to ensure it's correct
+        if obj.pk:
+            calculated_total = sum(product.total for product in obj.purchase_products.all())
+            if obj.net_total != calculated_total:
+                # Use update to avoid triggering another full save
+                PurchaseInvoice.objects.filter(pk=obj.pk).update(net_total=calculated_total)
+
     def save_formset(self, request, form, formset, change):
+        """Override save_formset to ensure all formsets are saved"""
         # Always save all formsets, whether creating new or editing
         super().save_formset(request, form, formset, change)
+        # After saving formsets, make sure the parent object's calculations are updated
+        obj = form.instance
+        if obj.pk:
+            calculated_total = sum(product.total for product in obj.purchase_products.all())
+            if obj.net_total != calculated_total:
+                # Use update to avoid triggering another full save
+                PurchaseInvoice.objects.filter(pk=obj.pk).update(net_total=calculated_total)
 
     def response_change(self, request, obj):
         if "_print_without_payments" in request.POST:
@@ -124,8 +155,9 @@ class PurchaseInvoiceAdmin(admin.ModelAdmin):
         verbose_name_plural = "Purchase Invoices"
 # Admin for PurchaseProduct
 class PurchaseProductAdmin(admin.ModelAdmin):
-    list_display = ('invoice', 'product', 'serial_number', 'quantity', 'price_display', 'total', 'damage', 'discount', 'rotten')
-    readonly_fields = ('total',)  # Make calculated fields read-only
+    list_display = ('serial_number', 'invoice', 'product', 'quantity', 'price_display', 'total', 'damage', 'discount', 'rotten')
+    readonly_fields = ('total', 'serial_number')  # Make calculated fields read-only
+    ordering = ('invoice', 'serial_number')  # Order by invoice then serial number
 
     def price_display(self, obj):
         return f"₹{obj.price:.2f}"
@@ -144,16 +176,24 @@ class SalesProductInline(admin.TabularInline):
     extra = 1  # Number of empty forms to show initially
     readonly_fields = ('total', 'net_weight', 'serial_number')
     fields = ('serial_number', 'product', 'gross_weight', 'discount', 'rotten', 'net_weight', 'price', 'total')
+    ordering = ('serial_number',)  # Order products by serial number
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        # Assign a serial number based on the ordering within this invoice
-        for index, obj in enumerate(queryset, start=1):
-            obj.serial_number = index
         return queryset
 
     def serial_number(self, obj):
-        return obj.serial_number
+        if obj.pk:
+            return obj.serial_number
+        else:
+            # Predict the next serial number for new items
+            if hasattr(obj, 'invoice') and obj.invoice and obj.invoice.pk:
+                existing_products = SalesProduct.objects.filter(invoice=obj.invoice)
+                if existing_products.exists():
+                    max_serial = existing_products.aggregate(models.Max('serial_number'))['serial_number__max'] or 0
+                    return max_serial + 1
+                return 1  # First product for this invoice
+        return "-"  # Fallback if we can't predict
     serial_number.short_description = "S/No"
 
 # Inline for SalesPayment within a Sales Invoice
@@ -310,8 +350,9 @@ class SalesInvoiceAdmin(admin.ModelAdmin):
 
 # Admin for SalesProduct
 class SalesProductAdmin(admin.ModelAdmin):
-    list_display = ('invoice', 'product', 'serial_number', 'gross_weight', 'discount', 'rotten', 'net_weight', 'price', 'total')
-    readonly_fields = ('total', 'net_weight')
+    list_display = ('serial_number', 'invoice', 'product', 'gross_weight', 'discount', 'rotten', 'net_weight', 'price', 'total')
+    readonly_fields = ('total', 'net_weight', 'serial_number')
+    ordering = ('invoice', 'serial_number')  # Order by invoice then serial number
     
     def serial_number(self, obj):
         return obj.serial_number

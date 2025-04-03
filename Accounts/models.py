@@ -107,15 +107,21 @@ class PurchaseInvoice(models.Model):
             else:
                 self.lot_number = "LOT-01"  # Default starting lot number
 
-        # --- First save to ensure the instance gets a primary key ---
+        # Only update net_total if it's a new instance or update_fields excludes net_total
+        update_total = True
+        if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+            update_total = 'net_total' not in kwargs['update_fields']
+        
+        # First save to ensure instance has a primary key
         super().save(*args, **kwargs)
-
-        # --- Update net_total after saving ---
-        calculated_total = sum(product.total for product in self.purchase_products.all())
-        if self.net_total != calculated_total:
-            self.net_total = calculated_total
-            # Update only the net_total field
-            super().save(update_fields=["net_total"])
+        
+        # Update net_total if needed (not during a field-specific update that includes net_total)
+        if update_total and self.pk:
+            calculated_total = sum(product.total for product in self.purchase_products.all())
+            if self.net_total != calculated_total:
+                self.net_total = calculated_total
+                # Update only the net_total field without triggering full save again
+                type(self).objects.filter(pk=self.pk).update(net_total=calculated_total)
 
     @property
     def available_quantity(self):
@@ -204,11 +210,16 @@ class PurchaseProduct(models.Model):
     def save(self, *args, **kwargs):
         print(f"--- Calculating PurchaseProduct --- ID: {self.pk}") # DEBUG
         print(f"Input -> Qty: {self.quantity}, Price: {self.price}, Dmg: {self.damage}, Disc: {self.discount}, Rotten: {self.rotten}") # DEBUG
-    # Auto-generate serial_number if not set (only for new objects)
-        if not self.serial_number and self.pk is None:
-            last_product = PurchaseProduct.objects.filter(invoice=self.invoice).order_by('-serial_number').first()
-            if last_product:
-                self.serial_number = last_product.serial_number + 1
+        # Auto-generate serial_number if not set (only for new objects)
+        if not self.serial_number or self.serial_number == 0:
+            # Get all existing products for this invoice and renumber them in sequence
+            existing_products = PurchaseProduct.objects.filter(invoice=self.invoice).order_by('id')
+            
+            # Determine the next serial number
+            if existing_products.exists():
+                # Find the highest existing serial number
+                max_serial = existing_products.aggregate(models.Max('serial_number'))['serial_number__max'] or 0
+                self.serial_number = max_serial + 1
             else:
                 self.serial_number = 1  # Start from 1 for the first product in the invoice
 
@@ -244,7 +255,7 @@ class PurchaseProduct(models.Model):
         else:
             # For all other products, calculate loading/unloading based on the *original* quantity
             print(f"Step 5 -> Product is '{product_name}', calculating loading_unloading") # DEBUG
-        self.loading_unloading = Decimal(self.quantity) * Decimal('0.40')
+            self.loading_unloading = Decimal(self.quantity) * Decimal('0.40')
         print(f"Step 5 -> Final loading_unloading: {self.loading_unloading}") # DEBUG
 
         # 6. Calculate final total: Price after discount - loading/unloading cost
@@ -259,10 +270,30 @@ class PurchaseProduct(models.Model):
             print(f"Step 7 -> Final Total: {self.total}") # DEBUG
 
         print("--- Calculation Finished --- ") # DEBUG
+        
+        # Save the purchase product with calculated values
         super().save(*args, **kwargs)
+        
+        # Update the parent invoice's net_total by triggering a calculation
+        # But only if we're not in the middle of a bulk update or creation
+        if self.invoice and self.invoice.pk:
+            calculated_total = sum(product.total for product in self.invoice.purchase_products.all())
+            if self.invoice.net_total != calculated_total:
+                # Use direct update to avoid recursive saves
+                PurchaseInvoice.objects.filter(pk=self.invoice.pk).update(net_total=calculated_total)
+                
+        # After saving, resequence all the serial numbers if needed
+        self.resequence_serial_numbers()
+
+    def resequence_serial_numbers(self):
+        """Ensure all products in the same invoice have sequential serial numbers"""
+        products = PurchaseProduct.objects.filter(invoice=self.invoice).order_by('id')
+        for i, product in enumerate(products, start=1):
+            if product.serial_number != i:
+                PurchaseProduct.objects.filter(pk=product.pk).update(serial_number=i)
 
     def __str__(self):
-        return f"{self.product.name} in Invoice {self.invoice.invoice_number}"
+        return f"{self.serial_number}. {self.product.name} in Invoice {self.invoice.invoice_number}"
 
 
 class SalesInvoice(models.Model):
@@ -412,10 +443,17 @@ class SalesProduct(models.Model):
                                 help_text="Total = Net Weight * Price")
     
     def save(self, *args, **kwargs):
-        # Auto-generate serial_number if not set.
-        if not self.serial_number:
-            last_item = SalesProduct.objects.filter(invoice=self.invoice).order_by('-serial_number').first()
-            self.serial_number = last_item.serial_number + 1 if last_item else 1
+        # Auto-generate serial_number if not set or is zero
+        if not hasattr(self, 'serial_number') or self.serial_number == 0:
+            # Get all existing products for this invoice and determine the next serial number
+            existing_products = SalesProduct.objects.filter(invoice=self.invoice).order_by('id')
+            
+            if existing_products.exists():
+                # Find the highest existing serial number
+                max_serial = existing_products.aggregate(models.Max('serial_number'))['serial_number__max'] or 0
+                self.serial_number = max_serial + 1
+            else:
+                self.serial_number = 1  # Start from 1 for the first product in the invoice
         
         # Calculate net_weight:
         # net_weight = gross_weight - (gross_weight * discount/100) - rotten
@@ -424,6 +462,16 @@ class SalesProduct(models.Model):
         self.total = self.net_weight * self.price
         
         super().save(*args, **kwargs)
+        
+        # After saving, resequence all the serial numbers if needed
+        self.resequence_serial_numbers()
+    
+    def resequence_serial_numbers(self):
+        """Ensure all products in the same invoice have sequential serial numbers"""
+        products = SalesProduct.objects.filter(invoice=self.invoice).order_by('id')
+        for i, product in enumerate(products, start=1):
+            if product.serial_number != i:
+                SalesProduct.objects.filter(pk=product.pk).update(serial_number=i)
     
     def __str__(self):
         return f"{self.serial_number}. {self.product.name} in Invoice {self.invoice.invoice_number}"
