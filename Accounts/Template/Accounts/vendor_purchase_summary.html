@@ -1,0 +1,185 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load summary_tags %}
+
+{% block extrahead %}
+<style>
+    .summary-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .filter-section {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .filter-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-form .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .filter-form input, .filter-form button {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .filter-form button {
+        background-color: #417690;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 8px 15px;
+    }
+    .filter-form button:hover {
+        background-color: #2b5070;
+    }
+    .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .summary-table th, .summary-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .summary-table th {
+        background-color: #f2f2f2;
+    }
+    .summary-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .summary-table tr:hover {
+        background-color: #f1f1f1;
+    }
+    .numeric {
+        text-align: right;
+    }
+    .sortable {
+        cursor: pointer;
+    }
+    .sortable:hover {
+        background-color: #e0e0e0;
+    }
+    .sort-indicator {
+        margin-left: 5px;
+    }
+    .negative {
+        color: red;
+    }
+    .positive {
+        color: green;
+    }
+    .reset-link {
+        margin-left: 10px;
+        color: #666;
+        text-decoration: none;
+    }
+    .reset-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="summary-container">
+    <h1>Vendor Purchase Summary</h1>
+    
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="form-group">
+                <label for="from_date">From Date:</label>
+                <input type="date" id="from_date" name="from_date" value="{{ from_date }}">
+            </div>
+            <div class="form-group">
+                <label for="to_date">To Date:</label>
+                <input type="date" id="to_date" name="to_date" value="{{ to_date }}">
+            </div>
+            <div class="form-group">
+                <label for="search">Search Vendor:</label>
+                <input type="text" id="search" name="search" placeholder="Name, Contact, Area..." value="{{ search_query }}">
+            </div>
+            <div class="form-group">
+                <button type="submit">Apply Filters</button>
+                <a href="{% url 'vendor_purchase_summary' %}" class="reset-link">Reset</a>
+            </div>
+        </form>
+    </div>
+    
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th>
+                    <a href="?sort={% if sort_by == 'name' %}-{% endif %}name&from_date={{ from_date }}&to_date={{ to_date }}&search={{ search_query }}" class="sortable">
+                        Vendor Name
+                        {% if sort_by == 'name' %}▲{% elif sort_by == '-name' %}▼{% endif %}
+                    </a>
+                </th>
+                <th>Contact</th>
+                <th>Area</th>
+                <th class="numeric">
+                    <a href="?sort={% if sort_by == 'total_purchases' %}-{% endif %}total_purchases&from_date={{ from_date }}&to_date={{ to_date }}&search={{ search_query }}" class="sortable">
+                        Total Purchases
+                        {% if sort_by == 'total_purchases' %}▲{% elif sort_by == '-total_purchases' %}▼{% endif %}
+                    </a>
+                </th>
+                <th class="numeric">
+                    <a href="?sort={% if sort_by == 'total_payments' %}-{% endif %}total_payments&from_date={{ from_date }}&to_date={{ to_date }}&search={{ search_query }}" class="sortable">
+                        Total Payments
+                        {% if sort_by == 'total_payments' %}▲{% elif sort_by == '-total_payments' %}▼{% endif %}
+                    </a>
+                </th>
+                <th class="numeric">
+                    <a href="?sort={% if sort_by == 'due_amount' %}-{% endif %}due_amount&from_date={{ from_date }}&to_date={{ to_date }}&search={{ search_query }}" class="sortable">
+                        Due Amount
+                        {% if sort_by == 'due_amount' %}▲{% elif sort_by == '-due_amount' %}▼{% endif %}
+                    </a>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vendor in vendors %}
+            <tr>
+                <td>
+                    <a href="{% url 'vendor_invoice_detail' vendor_id=vendor.id %}?from_date={{ from_date }}&to_date={{ to_date }}" class="vendor-link">
+                        {{ vendor.name }}
+                    </a>
+                </td>
+                <td>{{ vendor.contact_number|default_if_none:"" }}</td>
+                <td>{{ vendor.area|default_if_none:"" }}</td>
+                <td class="numeric">₹{{ vendor.total_purchases|floatformat:2 }}</td>
+                <td class="numeric">₹{{ vendor.total_payments|floatformat:2 }}</td>
+                <td class="numeric {% if vendor.due_amount < 0 %}negative{% elif vendor.due_amount > 0 %}positive{% endif %}">
+                    ₹{{ vendor.due_amount|floatformat:2 }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">No vendor data found matching your criteria.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3"><strong>Total</strong></td>
+                <td class="numeric"><strong>₹{{ vendors|dictsumby:'total_purchases'|floatformat:2 }}</strong></td>
+                <td class="numeric"><strong>₹{{ vendors|dictsumby:'total_payments'|floatformat:2 }}</strong></td>
+                <td class="numeric"><strong>₹{{ vendors|dictsumby:'due_amount'|floatformat:2 }}</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %} 

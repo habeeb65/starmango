@@ -38,11 +38,15 @@ class PaymentInline(admin.TabularInline):
 # Admin for PurchaseInvoice
 class PurchaseInvoiceAdmin(admin.ModelAdmin):
     model = PurchaseInvoice
-    list_display = ('invoice_number','lot_number', 'vendor_name', 'net_total_after_cash_cutting', 'paid_amount', 'due_amount_display', 'date', 'print_invoice')
-    readonly_fields = ('invoice_number', 'lot_number','net_total', 'net_total_after_cash_cutting', 'paid_amount_display', 'due_amount_display')
+    list_display = ('invoice_number','lot_number', 'vendor_name', 'net_total_after_cash_cutting', 'paid_amount', 'due_amount_display', 'payment_status', 'date', 'print_invoice')
+    readonly_fields = ('invoice_number', 'lot_number','net_total', 'net_total_after_cash_cutting', 'paid_amount_display', 'due_amount_display', 'payment_status')
     search_fields = ('invoice_number','lot_number', 'vendor__name')
     list_filter = ('date', 'vendor')
-    inlines = [PurchaseProductInline, PaymentInline]
+    
+    # Remove the static inlines list and replace with get_inlines method
+    def get_inlines(self, request, obj=None):
+        # Always show both product and payment inlines
+        return [PurchaseProductInline, PaymentInline]
 
     def vendor_name(self, obj):
         return obj.vendor.name
@@ -60,20 +64,39 @@ class PurchaseInvoiceAdmin(admin.ModelAdmin):
     paid_amount_display.short_description = "Paid Amount"
 
     def due_amount_display(self, obj):
-        return f"₹{obj.due_amount:.2f}"
+        return format_html(f"<b style='color: #dc3545;'>₹{obj.due_amount:.2f}</b>")
     due_amount_display.short_description = "Due Amount"
+    
+    def payment_status(self, obj):
+        if obj.due_amount == 0:
+            status = "Paid"
+        elif obj.paid_amount == 0:
+            status = "Unpaid"
+        else:
+            status = "Partial"
+            
+        colors = {
+            'Paid': '#28a745',
+            'Unpaid': '#dc3545',
+            'Partial': '#ffc107'
+        }
+        return format_html(f"<b style='color: {colors.get(status, '#000')};'>{status}</b>")
+    payment_status.short_description = "Payment Status"
 
     def print_invoice(self, obj):
         url = reverse('generate_invoice_pdf', args=[obj.id])
         return format_html('<a class="button" href="{}" target="_blank">Print Invoice</a>', url)
     print_invoice.short_description = "Print Invoice"
 
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        if obj.pk:
-            obj.net_total = sum(product.total for product in obj.purchase_products.all())
-            obj.save()  # Save updated net total
+    def save_formset(self, request, form, formset, change):
+        # Always save all formsets, whether creating new or editing
+        super().save_formset(request, form, formset, change)
 
+    def response_change(self, request, obj):
+        if "_print_without_payments" in request.POST:
+            url = reverse('generate_invoice_pdf', args=[obj.id]) + "?hide_payments=1"
+            return redirect(url)
+        return super().response_change(request, obj)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -149,26 +172,53 @@ class SalesInvoiceAdmin(admin.ModelAdmin):
     list_display = (
         'invoice_number',
         'vendor_name', 
-        'net_total_after_commission', 
-        'packaging_total', 
+        'net_total_after_commission',
+        'packaging_total_display',
+        'purchased_crates_total_display', 
         'net_total_after_packaging', 
         'paid_amount_display',
         'due_amount_display',
         'payment_status',
-        'date', 
+        'invoice_date', 
         'print_invoice'
     )
     readonly_fields = (
         'invoice_number', 
         'net_total', 
         'net_total_after_commission', 
-        'packaging_total', 
+        'packaging_total',
+        'purchased_crates_total',
         'net_total_after_packaging',
         'paid_amount',
         'due_amount',
         'payment_status'
     )
     
+    # Simple procedural fields layout rearranged
+    fields = [
+        # Basic information
+        'vendor', 'invoice_date', 'vehicle_number', 'gross_vehicle_weight', 'reference',
+        
+        # Outgoing Crates
+        'no_of_crates', 'cost_per_crate', 
+        
+        # Incoming Crates
+        'purchased_crates_quantity', 'purchased_crates_unit_price', 
+        'purchased_crates_total', # Read-only calculated field
+        
+        # Sales, Commission & Packaging Cost
+        'invoice_number', # Read-only
+        'net_total', # Read-only 
+        'net_total_after_commission', # Read-only
+        'packaging_total', # Read-only (Total packaging cost)
+        
+        # Final Totals & Payments
+        'net_total_after_packaging', # Read-only
+        'paid_amount', # Read-only
+        'due_amount', # Read-only
+        'payment_status' # Read-only
+    ]
+
     def get_inlines(self, request, obj=None):
         if obj and obj.pk:  # If editing existing object
             if '_saveasnew' not in request.POST:  # Not saving as new
@@ -176,7 +226,7 @@ class SalesInvoiceAdmin(admin.ModelAdmin):
         return [SalesLotInline, SalesProductInline, SalesPaymentInline]  # Show all inlines for new
     
     search_fields = ('invoice_number', 'vendor__name', )
-    list_filter = ('date',)
+    list_filter = ('invoice_date',)
 
     actions = [admin.actions.delete_selected]
 
@@ -250,6 +300,14 @@ class SalesInvoiceAdmin(admin.ModelAdmin):
             ))
         return super().change_form(request, obj, **kwargs)
 
+    def packaging_total_display(self, obj):
+        return f"₹{obj.packaging_total:.2f}"
+    packaging_total_display.short_description = "Total packaging cost"
+    
+    def purchased_crates_total_display(self, obj):
+        return f"₹{obj.purchased_crates_total:.2f}"
+    purchased_crates_total_display.short_description = "Purchased crates total"
+
 # Admin for SalesProduct
 class SalesProductAdmin(admin.ModelAdmin):
     list_display = ('invoice', 'product', 'serial_number', 'gross_weight', 'discount', 'rotten', 'net_weight', 'price', 'total')
@@ -310,7 +368,7 @@ class packagingsAdmin(admin.ModelAdmin):
 
     def packaging_total_display(self, obj):
         return f"₹{obj.packaging_total:.2f}"
-    packaging_total_display.short_description = "Total Packaging Cost"
+    packaging_total_display.short_description = "Total packaging cost"
 
     def print_packaging_invoice(self, obj):
         url = reverse('generate_packaging_pdf', args=[obj.id])

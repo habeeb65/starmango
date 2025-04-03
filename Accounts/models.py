@@ -54,7 +54,8 @@ class Payment(models.Model):
         
         net_total_after_cash_cutting = invoice.net_total_after_cash_cutting
 
-        if new_total > net_total_after_cash_cutting:
+        # Only validate if net_total_after_cash_cutting is meaningful (> 0.01)
+        if net_total_after_cash_cutting > Decimal('0.01') and new_total > net_total_after_cash_cutting:
             raise ValidationError(
                 f"Total payment cannot exceed the net total after 2% cash cutting: ₹{net_total_after_cash_cutting}."
             )
@@ -194,13 +195,15 @@ class PurchaseProduct(models.Model):
     serial_number = models.IntegerField(default=0, editable=False)  # Make it non-editable
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    damage = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    rotten = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    damage = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Damage (Kg)")
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Discount (%)")
+    rotten = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Rotten (Kg)")
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     loading_unloading = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Add this
 
     def save(self, *args, **kwargs):
+        print(f"--- Calculating PurchaseProduct --- ID: {self.pk}") # DEBUG
+        print(f"Input -> Qty: {self.quantity}, Price: {self.price}, Dmg: {self.damage}, Disc: {self.discount}, Rotten: {self.rotten}") # DEBUG
     # Auto-generate serial_number if not set (only for new objects)
         if not self.serial_number and self.pk is None:
             last_product = PurchaseProduct.objects.filter(invoice=self.invoice).order_by('-serial_number').first()
@@ -209,17 +212,53 @@ class PurchaseProduct(models.Model):
             else:
                 self.serial_number = 1  # Start from 1 for the first product in the invoice
 
-    # Calculate total
-        discount_quantity = (self.quantity * self.discount) / 100
-        damage_quantity = (self.quantity * self.damage) / 100
-        remaining_quantity = self.quantity - discount_quantity - damage_quantity - self.rotten
+        # 1. Calculate physical quantity after damage and rotten
+        physical_quantity = self.quantity - self.damage - self.rotten
+        physical_quantity = max(physical_quantity, Decimal('0.00')) 
+        print(f"Step 1 -> Physical Qty: {physical_quantity}") # DEBUG
 
-        # Calculate loading/unloading cost (0.40 per unit of quantity)
+        # 2. Calculate the base price for the physical quantity
+        base_price_total = physical_quantity * self.price
+        print(f"Step 2 -> Base Price Total: {base_price_total}") # DEBUG
+
+        # 3. Calculate discount amount based on the base price
+        discount_amount = (base_price_total * self.discount) / 100
+        print(f"Step 3 -> Discount Amount: {discount_amount}") # DEBUG
+
+        # 4. Calculate price after discount
+        price_after_discount = base_price_total - discount_amount
+        print(f"Step 4 -> Price After Discount: {price_after_discount}") # DEBUG
+
+        # 5. Calculate loading/unloading cost based on Product Name
+        # Accessing product name requires the related object to be loaded
+        # Ensure product is loaded, handle potential DoesNotExist if needed (though FK implies it should exist)
+        try:
+            product_name = self.product.name
+        except Product.DoesNotExist:
+            product_name = "" # Should not happen with ForeignKey
+            
+        if product_name == "Rotten":
+            # If Product Name is 'Rotten', loading/unloading cost is zero
+            print(f"Step 5 -> Product is '{product_name}', setting loading_unloading to 0") # DEBUG
+            self.loading_unloading = Decimal('0.00')
+        else:
+            # For all other products, calculate loading/unloading based on the *original* quantity
+            print(f"Step 5 -> Product is '{product_name}', calculating loading_unloading") # DEBUG
         self.loading_unloading = Decimal(self.quantity) * Decimal('0.40')
+        print(f"Step 5 -> Final loading_unloading: {self.loading_unloading}") # DEBUG
 
-        # Calculate total (price * remaining quantity after all deductions + loading/unloading cost)
-        self.total = (remaining_quantity * self.price) - self.loading_unloading
+        # 6. Calculate final total: Price after discount - loading/unloading cost
+        self.total = price_after_discount - self.loading_unloading
+        print(f"Step 6 -> Final Total before min check: {self.total}") # DEBUG
+        
+        # Ensure total is never zero or negative
+        if self.total <= 0:
+            self.total = Decimal('0.01')  # Set a minimum value
+            print(f"Step 7 -> Adjusted Total to minimum: {self.total}") # DEBUG
+        else:
+            print(f"Step 7 -> Final Total: {self.total}") # DEBUG
 
+        print("--- Calculation Finished --- ") # DEBUG
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -228,6 +267,7 @@ class PurchaseProduct(models.Model):
 
 class SalesInvoice(models.Model):
     invoice_number = models.CharField(max_length=20, unique=True, editable=False)
+    invoice_date = models.DateField(default=date.today)
     vendor = models.ForeignKey('Customer', on_delete=models.PROTECT, related_name='sales_invoices')
     
     lots = models.ManyToManyField(
@@ -251,15 +291,22 @@ class SalesInvoice(models.Model):
     # lot_quantity = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True,
     #                                    help_text="Quantity (in kgs) used from the selected lot.")
     
-    date = models.DateField(default=date.today)
     vehicle_number = models.CharField(max_length=50, blank=True, null=True)
     gross_vehicle_weight = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True,
                                                help_text="In Kilograms")
     reference = models.CharField(max_length=200, blank=True, null=True)
     
-    # Packaging & Loading Cost fields
-    no_of_crates = models.IntegerField(blank=True, null=True)
-    cost_per_crate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    # Crate information - outgoing
+    no_of_crates = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, null=True, 
+                                      verbose_name="No of Crates")
+    cost_per_crate = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, null=True, 
+                                        verbose_name="Packaging cost per crate (₹)")
+    
+    # Crate information - incoming
+    purchased_crates_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, null=True, 
+                                                  verbose_name="No of Purchased Crates")
+    purchased_crates_unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, null=True,
+                                                    verbose_name="Purchased price per crate (₹)")
     
     def save(self, *args, **kwargs):
         # Auto-generate invoice number if not set.
@@ -298,7 +345,7 @@ class SalesInvoice(models.Model):
     
     @property
     def packaging_total(self):
-        """Packaging and Loading cost = no_of_crates * cost_per_crate."""
+        """Total packaging cost = no of crates * packaging cost per crate."""
         # Check if both no_of_crates and cost_per_crate are not None
         if self.no_of_crates is not None and self.cost_per_crate is not None:
             # Return the total cost by multiplying no_of_crates and cost_per_crate
@@ -307,11 +354,19 @@ class SalesInvoice(models.Model):
         return Decimal('0.00')
     
     @property
+    def purchased_crates_total(self):
+        """Calculated Purchased crates total = No of Purchased Crates * Purchased price per crate."""
+        if self.purchased_crates_quantity is not None and self.purchased_crates_unit_price is not None:
+            return (Decimal(self.purchased_crates_quantity) * self.purchased_crates_unit_price).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00') # Return 0 if quantity or price is missing
+    
+    @property
     def net_total_after_packaging(self):
         """
-        Final invoice total = Net Total After Commission + Packaging Total.
+        Final invoice total = Net Total After Commission + Total packaging cost + Purchased crates total.
         """
-        return self.net_total_after_commission + self.packaging_total
+        # Ensure this still ADDS the calculated purchased_crates_total
+        return self.net_total_after_commission + self.packaging_total + self.purchased_crates_total
     
     @property
     def paid_amount(self):
@@ -489,12 +544,13 @@ class SalesLot(models.Model):
                     f"Lot {self.purchase_invoice.lot_number} doesn't contain {sales_product.name}"
             )
 class Packaging_Invoice(models.Model):
-    no_of_crates = models.IntegerField(blank=True, null=True)
-    cost_per_crate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    no_of_crates = models.IntegerField(blank=True, null=True, verbose_name="No of Crates")
+    cost_per_crate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, 
+                                        verbose_name="Packaging cost per crate (₹)")
 
     @property
     def packaging_total(self):
-        """Packaging and Loading cost = no_of_crates * cost_per_crate."""
+        """Total packaging cost = no of crates * packaging cost per crate."""
         # Check if both no_of_crates and cost_per_crate are not None
         if self.no_of_crates is not None and self.cost_per_crate is not None:
             # Return the total cost by multiplying no_of_crates and cost_per_crate

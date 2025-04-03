@@ -1,12 +1,38 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/base_dashboard.html" %}
 {% load static %}
 
-{% block extrahead %}
+{% block dashboard_styles %}
     <!-- Materialize CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
+        /* Fix for sidebar styling consistency */
+        .dashboard .sidebar {
+            height: 100% !important;
+            overflow: hidden !important;
+        }
+        .dashboard .main-sidebar {
+            width: 250px !important;
+        }
+        .dashboard .nav-sidebar > .nav-item {
+            width: 250px !important;
+        }
+        /* Prevent scrollbars in sidebar only */
+        .dashboard .sidebar .os-content {
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        .dashboard .nav-sidebar {
+            overflow: hidden !important;
+        }
+        
+        /* Dashboard content should scroll */
+        .dashboard-container {
+            overflow-y: auto !important;
+        }
+        
+        /* Dashboard card styling */
         .dashboard-card {
             border-radius: 10px;
             transition: all 0.3s ease;
@@ -97,10 +123,45 @@
             background: rgba(255,255,255,0.15);
             border-radius: 50%;
         }
+        /* Fix for Jazzmin theme compatibility */
+        .main-header .navbar-nav.ml-auto {
+            padding-right: 0 !important;
+        }
+        .sidebar {
+            width: 250px !important;
+            min-width: 250px !important;
+            max-width: 250px !important;
+            overflow: hidden !important;
+        }
+        #jazzy-navbar {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        /* Make dashboard sidebar match other pages */
+        .dashboard .nav-sidebar > .nav-item > .nav-link.active {
+            background-color: #007bff !important;
+            color: white !important;
+        }
+        
+        /* Fix dashboard table scrolling */
+        .responsive-table {
+            overflow-x: auto !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        
+        /* Ensure top navbar link for Dashboard isn't highlighted */
+        .dashboard .main-header .navbar-nav .nav-item a[href="{% url 'admin-dashboard' %}"] {
+            font-weight: normal !important; /* Reset font weight */
+            background-color: transparent !important; /* Reset background */
+            color: inherit !important; /* Use default text color */
+            opacity: 0.8 !important; /* Match other inactive links */
+        }
     </style>
 {% endblock %}
 
-{% block content %}
+{% block dashboard_content %}
 <div class="row">
     <!-- Main Content -->
     <div class="col s12">
@@ -219,41 +280,59 @@
                 <div class="card white data-table">
                     <div class="card-content">
                         <span class="card-title"><i class="material-icons teal-text text-darken-2">storage</i>Inventory Summary</span>
-                        <table class="striped highlight">
-                            <thead class="teal lighten-5">
-                                <tr>
-                                    <th>Lot Number</th>
-                                    <th>Product</th>
-                                    <th class="right-align">Stock</th>
-                                    <th class="right-align">Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lot in available_lots %}
-                                <tr>
-                                    <td>{{ lot.lot_number }}</td>
-                                    <td>{{ lot.product.name }}</td>
-                                    <td class="right-align">{{ lot.remaining_quantity|floatformat:2 }}</td>
-                                    <td class="right-align rupee">{{ lot.price|floatformat:2 }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="center-align grey-text">No inventory available</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                        <div class="responsive-table">
+                            <table class="striped highlight">
+                                <thead class="teal lighten-5">
+                                    <tr>
+                                        <th>Lot Number</th>
+                                        <th>Product</th>
+                                        <th class="right-align">Available Stock (Kg)</th>
+                                        <th class="right-align">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lot in available_lots %}
+                                    <tr>
+                                        <td>{{ lot.lot_number }}</td>
+                                        <td>
+                                            {% for product in lot.purchase_products.all %}
+                                            {{ product.product.name }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        <td class="right-align">{{ lot.available_quantity|floatformat:2 }}</td>
+                                        <td class="right-align rupee">{{ lot.net_total|floatformat:2 }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="center-align grey-text">No inventory available</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block dashboard_scripts %}
+<!-- Add Materialize JS for any interactive features -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script>
+    // Add dashboard class to body
+    document.body.classList.add('dashboard');
+    
+    // Only remove scrollbars from sidebar elements
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize any Materialize components if needed
+        // Fix sidebar styling to match other pages
+        const sidebarItems = document.querySelectorAll('.nav-sidebar .nav-item .nav-link.active');
+        sidebarItems.forEach(function(el) {
+            el.style.backgroundColor = '#007bff';
+            el.style.color = 'white';
+        });
     });
 </script>
 {% endblock %}

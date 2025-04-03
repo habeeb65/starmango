@@ -1,0 +1,98 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <!-- Custom admin CSS -->
+    <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+    <style>
+        /* Force sidebar to match home page with no scrollbars */
+        .main-sidebar {
+            width: 250px !important;
+            min-width: 250px !important;
+            overflow: hidden !important;
+        }
+        
+        .main-sidebar .sidebar {
+            width: 100% !important;
+            overflow: hidden !important;
+            height: 100% !important;
+        }
+        
+        /* Hide scrollbars only in sidebar elements */
+        .main-sidebar .sidebar:hover,
+        .main-sidebar:hover,
+        .sidebar:hover,
+        .nav-sidebar:hover {
+            overflow: hidden !important;
+        }
+        
+        /* Fix for webkit browsers (sidebar only) */
+        .sidebar::-webkit-scrollbar,
+        .nav-sidebar::-webkit-scrollbar,
+        .main-sidebar::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+        }
+        
+        /* Allow scrolling in main content */
+        .dashboard-container {
+            padding: 20px;
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+            overflow-y: auto !important;
+        }
+        
+        /* Ensure body allows vertical scrolling */
+        body {
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            height: auto !important;
+            max-height: none !important;
+        }
+        
+        /* Dashboard color consistency */
+        .nav-sidebar .nav-item > .nav-link.active {
+            background-color: #007bff !important;
+            color: white !important;
+        }
+    </style>
+    <!-- Additional dashboard-specific styles can be added by child templates -->
+    {% block dashboard_styles %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    {% block dashboard_content %}
+    <!-- This will be filled by child templates -->
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
+    <!-- Additional dashboard-specific scripts can be added by child templates -->
+    <script>
+        // Force sidebar to match styling and remove scrollbars only from sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('sidebar-fixed');
+            
+            // Target only sidebar elements to hide scrollbars
+            const scrollElements = document.querySelectorAll('.sidebar, .nav-sidebar, .main-sidebar');
+            scrollElements.forEach(function(el) {
+                el.style.overflow = 'hidden';
+                el.style.overflowY = 'hidden';
+                el.style.overflowX = 'hidden';
+            });
+            
+            // Match active item color
+            document.querySelectorAll('.nav-sidebar .nav-item > .nav-link.active').forEach(function(el) {
+                el.style.backgroundColor = '#007bff';
+                el.style.color = 'white';
+            });
+        });
+    </script>
+    {% block dashboard_scripts %}{% endblock %}
+{% endblock %} 

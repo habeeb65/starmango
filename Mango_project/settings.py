@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'Accounts',
 ]
 
@@ -57,7 +58,10 @@ MIDDLEWARE = [
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'Accounts', 'Template'),],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+            os.path.join(BASE_DIR, 'Accounts', 'Template'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -139,12 +143,88 @@ STATICFILES_FINDERS = [
 ]
 
 JAZZMIN_SETTINGS = {
+    # title of the window (Will default to current_admin_site.site_title if absent or None)
+    "site_title": "Star Mango Admin",
+    # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_header": "Star Mango Supplies Korutla",
+    # Logo to use for your site, must be present in static files
+    "site_logo": None,
+    # CSS classes that are applied to the logo
+    "site_logo_classes": None,
+    # Logo to use for login form in dark themes
+    "login_logo": None,
+    # Relative path to a favicon for your site, will default to site_logo if absent
+    "site_icon": None,
+    # Welcome text on the login screen
+    "welcome_sign": "Welcome to Star Mango Supplies Admin",
+    # Copyright on the footer
+    "copyright": "Star Mango Ltd",
+    
+    # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
+    "user_avatar": None,
+    
+    # Top menu
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard", "url": "admin-dashboard", "permissions": ["auth.view_user"]},
+        {"name": "Vendor Summary", "url": "/accounts/vendor-summary/"},
+        {"name": "Customer Summary", "url": "/accounts/customer-summary/"},
+    ],
+    
+    # Custom links to append to app groups, keyed on app name
     "custom_links": {
-        "Your App Name": [{
-            "name": "Dashboard",
-            "url": "admin-dashboard",  # URL name we defined
-            "icon": "fas fa-chart-line",  # Choose any FontAwesome icon
-        }]
+        "Accounts": [
+            {"name": "Dashboard", "url": "admin-dashboard", "icon": "fas fa-chart-line"}
+        ]
     },
+    
+    # Override app/model ordering by 3 ways
+    "order_with_respect_to": ["Accounts", "auth"],
+    "custom_app_order": ["Accounts", "auth"],
+    # Specify how models are ordered specifically by app
+    "custom_apps_models": {
+        "Accounts": [
+            "PurchaseInvoice",
+            "SalesInvoice",
+            "PurchaseVendor",
+            "Customer",
+            "Product",
+            "Payment",
+            "Expense",
+            "Damages",
+        ],
+    },
+    
+    # Specify an app to hide all of its models
+    "hide_apps": [],
+    
+    # Specify models to hide
+    "hide_models": [],
+    
+    # Specify how models are ordered
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    
+    # Icons
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "Accounts.PurchaseInvoice": "fas fa-shopping-cart",
+        "Accounts.SalesInvoice": "fas fa-cash-register",
+        "Accounts.Product": "fas fa-box",
+        "Accounts.PurchaseVendor": "fas fa-users",
+        "Accounts.Customer": "fas fa-user-friends",
+        "Accounts.Expense": "fas fa-money-bill",
+        "Accounts.Damages": "fas fa-exclamation-triangle"
+    },
+    
+    # UI Settings
+    "custom_css": "css/custom_admin.css",
+    "custom_js": None,
+    "use_google_fonts_cdn": True,
+    "show_ui_builder": False,
+    "changeform_format": "horizontal_tabs",
+    "related_modal_active": True
 }
 ROOT_URLCONF = 'Mango_project.urls'

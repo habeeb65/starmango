@@ -19,8 +19,7 @@ from django.contrib import admin
 from django.urls import path, include 
 from django.shortcuts import redirect
 from django.conf.urls.static import static
-from Accounts.views import generate_sales_invoice_pdf
-from Accounts.views import dashboard
+from Accounts.views import generate_sales_invoice_pdf, dashboard, admin_dashboard
 from django.http import HttpResponse
 
 def homepage(request):
@@ -95,7 +94,7 @@ def redirect_to_admin(request):
 urlpatterns = [
     path('', homepage, name='home'),  # Root URL shows homepage
     path('admin-redirect/', redirect_to_admin, name='admin-redirect'),  # Redirect to admin
-    path('admin/dashboard/', dashboard, name='admin-dashboard'),
+    path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
     path('admin/', admin.site.urls),
     path('accounts/', include ('Accounts.urls')),
     path('sales_invoice/<int:invoice_id>/pdf/', generate_sales_invoice_pdf, name='generate_sales_invoice_pdf'),
