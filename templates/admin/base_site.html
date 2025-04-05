@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script type="text/javascript">
+// Function to open the vendor popup window (inline version)
+function openVendorPopup(url, name) {
+    console.log("Inline openVendorPopup called with", url, name);
+    
+    var width = 800;
+    var height = 600;
+    var left = (screen.width - width) / 2;
+    var top = (screen.height - height) / 2;
+    
+    var features = [
+        'width=' + width,
+        'height=' + height,
+        'top=' + top,
+        'left=' + left,
+        'resizable=yes',
+        'scrollbars=yes',
+        'status=yes'
+    ].join(',');
+    
+    console.log("Opening popup with features:", features);
+    var win = window.open(url, name, features);
+    win.focus();
+    return false;
+}
+
+// Function to handle the popup response
+function dismissAddRelatedObjectPopup(win, objId, objName) {
+    console.log("Inline dismissAddRelatedObjectPopup called with", objId, objName);
+    
+    // Get the vendor select element in the parent window
+    var vendorSelect = window.opener.document.getElementById('id_vendor');
+    console.log("Found vendor select:", vendorSelect);
+    
+    if (vendorSelect) {
+        // Create a new option element with the new vendor
+        var option = new Option(objName, objId);
+        option.selected = true;
+        
+        // Add the option to the select element
+        vendorSelect.appendChild(option);
+        
+        // Trigger the change event (important for any dependent fields)
+        if ("createEvent" in document) {
+            var evt = document.createEvent("HTMLEvents");
+            evt.initEvent("change", false, true);
+            vendorSelect.dispatchEvent(evt);
+        } else {
+            vendorSelect.fireEvent("onchange");
+        }
+    }
+    
+    // Close the popup window
+    win.close();
+}
+</script>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %} 

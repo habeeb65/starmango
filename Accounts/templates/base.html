@@ -1,0 +1,112 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+<style>
+    /* Fix for navbar scrolling issue */
+    #nav-sidebar {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+    
+    /* Make navigation items closer */
+    .nav-item {
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Custom navigation styling */
+    .custom-nav-header {
+        padding: 10px;
+        background-color: #417690;
+        color: white;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    
+    .custom-nav-link {
+        display: block;
+        padding: 8px 16px;
+        color: #666;
+        text-decoration: none !important;
+    }
+    
+    .custom-nav-link:hover {
+        background-color: #f5f5f5;
+        color: #417690;
+    }
+    
+    .custom-nav-link.active {
+        background-color: #417690;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block usertools %}
+    {{ block.super }}
+    <div id="custom-navigation">
+        <div class="custom-nav-header">{% trans 'Star Mango Navigation' %}</div>
+        <ul>
+            <li>
+                <a href="{% url 'admin:index' %}" class="custom-nav-link {% if request.path == '/admin/' %}active{% endif %}">
+                    Admin Home
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin-dashboard' %}" class="custom-nav-link {% if request.path == '/admin/dashboard/' %}active{% endif %}">
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'vendor_summary' %}" class="custom-nav-link {% if request.path == '/accounts/vendor-summary/' %}active{% endif %}">
+                    Vendor Summary
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'vendor_bulk_payment' %}" class="custom-nav-link {% if request.path == '/accounts/vendor-bulk-payment/' %}active{% endif %}">
+                    Vendor Bulk Payment
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'customer_purchase_summary' %}" class="custom-nav-link {% if request.path == '/accounts/customer-summary/' %}active{% endif %}">
+                    Customer Summary
+                </a>
+            </li>
+        </ul>
+    </div>
+{% endblock %}
+
+<!-- Add Vendor Modal -->
+<div class="modal fade" id="addVendorModal" tabindex="-1" role="dialog" aria-labelledby="addVendorModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addVendorModalLabel">Add New Vendor</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="vendorForm">
+          <div class="form-group">
+            <label for="vendor_name">Vendor Name*</label>
+            <input type="text" class="form-control" id="vendor_name" required>
+          </div>
+          <div class="form-group">
+            <label for="vendor_contact">Contact Number</label>
+            <input type="text" class="form-control" id="vendor_contact">
+          </div>
+          <div class="form-group">
+            <label for="vendor_area">Area</label>
+            <input type="text" class="form-control" id="vendor_area">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" onclick="saveVendor()">Save Vendor</button>
+      </div>
+    </div>
+  </div>
+</div>

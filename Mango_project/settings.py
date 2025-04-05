@@ -230,3 +230,6 @@ JAZZMIN_SETTINGS = {
     "related_modal_active": True
 }
 ROOT_URLCONF = 'Mango_project.urls'
+
+# Add this setting to allow admin popups (which use iframes)
+X_FRAME_OPTIONS = 'SAMEORIGIN'
