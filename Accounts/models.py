@@ -450,9 +450,9 @@ class SalesProduct(models.Model):
         
         # Calculate net_weight:
         # net_weight = gross_weight - (gross_weight * discount/100) - rotten
-        self.net_weight = self.gross_weight - ((self.gross_weight * self.discount) / Decimal('100.00')) - self.rotten
+        self.net_weight = round(self.gross_weight - ((self.gross_weight * self.discount) / Decimal('100.00')) - self.rotten, 2)
         # Calculate total:
-        self.total = self.net_weight * self.price
+        self.total = (self.net_weight * self.price)
         
         super().save(*args, **kwargs)
     
@@ -556,14 +556,38 @@ class SalesLot(models.Model):
     def clean(self):
         super().clean()
         
-        # Check available quantity
-        if self.quantity > self.purchase_invoice.available_quantity:
-            raise ValidationError(
-                f"Only {self.purchase_invoice.available_quantity}kg available in {self.purchase_invoice.lot_number}"
-            )
+        # Skip validation if we're editing an existing record and not changing the quantity
+        if self.pk and hasattr(self, '_loaded_quantity') and self.quantity == self._loaded_quantity:
+            return
+        
+        # Skip validation completely if purchase_invoice is not selected yet
+        if not self.purchase_invoice:
+            return
+            
+        # Skip quantity validation if not provided yet
+        if self.quantity is None:
+            return
+
+        # Check available quantity - only for new records or edited quantities
+        if self.purchase_invoice.available_quantity is not None:
+            # For existing records being edited, account for the current allocation
+            if self.pk:
+                from django.db.models import F
+                # Get the original record from the database
+                original = type(self).objects.get(pk=self.pk)
+                # Only validate if the new quantity is greater than the original
+                if self.quantity > original.quantity + self.purchase_invoice.available_quantity:
+                    raise ValidationError(
+                        f"Only {original.quantity + self.purchase_invoice.available_quantity}kg available in {self.purchase_invoice.lot_number}"
+                    )
+            # For new records
+            elif self.quantity > self.purchase_invoice.available_quantity:
+                raise ValidationError(
+                    f"Only {self.purchase_invoice.available_quantity}kg available in {self.purchase_invoice.lot_number}"
+                )
 
         # Skip product check if SalesInvoice is unsaved (no primary key)
-        if not self.sales_invoice.pk:
+        if not hasattr(self, 'sales_invoice') or not self.sales_invoice or not self.sales_invoice.pk:
             return  # Skip validation until parent is saved
 
         # Check product consistency (only after SalesInvoice is saved)
@@ -573,7 +597,14 @@ class SalesLot(models.Model):
             if not self.purchase_invoice.purchase_products.filter(product=sales_product).exists():
                 raise ValidationError(
                     f"Lot {self.purchase_invoice.lot_number} doesn't contain {sales_product.name}"
-            )
+                )
+                
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Store the original quantity when the instance is loaded from the database
+        if self.pk and hasattr(self, 'quantity'):
+            self._loaded_quantity = self.quantity
+
 class Packaging_Invoice(models.Model):
     no_of_crates = models.IntegerField(blank=True, null=True, verbose_name="No of Crates")
     cost_per_crate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True,
@@ -589,4 +620,3 @@ class Packaging_Invoice(models.Model):
         # Return 0.00 if either no_of_crates or cost_per_crate is None
         return Decimal('0.00')
 
-# Vendor Bulk Payment System Models
