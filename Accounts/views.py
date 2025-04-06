@@ -529,7 +529,7 @@ def generate_sales_invoice_pdf(request, invoice_id):
             str(idx),
             sp.product.name,
             f"{sp.gross_weight:.2f} Kg",
-            f"{round(sp.net_weight):.0f} Kg",
+            f"{sp.net_weight:.2f} Kg",
             f"₹ {sp.price:.2f}",
             f"{sp.discount:.2f}%",
             f"{sp.rotten:.2f} Kg",
@@ -555,7 +555,7 @@ def generate_sales_invoice_pdf(request, invoice_id):
 
     # Enhanced Summary Section
     summary_data = [
-        ["Total Gross Weight:", f"{(invoice.total_gross_weight):.0f} Kg"],
+        ["Total Gross Weight:", f"{invoice.total_gross_weight:.2f} Kg"],
         ["Net Total:", f"₹{invoice.net_total:.2f}"],
         ["Commission:", f"₹{invoice.net_total_after_commission - invoice.net_total:.2f}"],
         ["Net Total After Commission:", f"₹{invoice.net_total_after_commission:.2f}"],
