@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
-from dotenv import load_dotenv
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -81,15 +81,10 @@ WSGI_APPLICATION = 'Mango_project.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME'), # e.g., habeeb321$starmango
-        'USER': os.environ.get('DB_USER'), # e.g., habeeb321
-        'PASSWORD': os.environ.get('DB_PASSWORD'), # Your MySQL password
-        'HOST': os.environ.get('DB_HOST'), # e.g., habeeb321.mysql.pythonanywhere-services.com
-        'PORT': os.environ.get('DB_PORT', '3306'), # Default to 3306 if not set
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -209,7 +204,7 @@ JAZZMIN_SETTINGS = {
 
     # Specify how models are ordered
     "show_sidebar": True,
-    "navigation_expanded": False,
+    "navigation_expanded": True,
 
     # Icons
     "icons": {
@@ -225,14 +220,59 @@ JAZZMIN_SETTINGS = {
         "Accounts.Damages": "fas fa-exclamation-triangle"
     },
 
-    # UI Settings
+    # UI Settings - Simplified to use built-in functionality
     "custom_css": "css/custom_admin.css",
     "custom_js": None,
     "use_google_fonts_cdn": True,
-    "show_ui_builder": False,
+    "show_ui_builder": True,
     "changeform_format": "horizontal_tabs",
-    "related_modal_active": True
+    "related_modal_active": True,
+    "form_size": "default",
+    "theme": "default",
+    "dark_mode_theme": None,
 }
+
+# Ensure jQuery is included properly
+JAZZMIN_INCLUDE_JQUERY = True
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "button_classes": {
+        "primary": "btn-outline-primary",
+        "secondary": "btn-outline-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    },
+    "select2_theme": "krajee",
+    "field_control": {
+        "input": "form-control",
+        "select": "form-control",
+        "textarea": "form-control",
+        "number": "form-control",
+        "checkbox": "custom-control-input",
+        "radio": "custom-control-input"
+    }
+}
+
 ROOT_URLCONF = 'Mango_project.urls'
 
 # Add this setting to allow admin popups (which use iframes)

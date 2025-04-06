@@ -1,0 +1,87 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+    <style>
+        /* Additional inline fixes for Select2 */
+        .select2-container {
+            z-index: 9999 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        .select2-dropdown {
+            z-index: 9999 !important;
+            min-width: 250px !important;
+            width: auto !important;
+        }
+        
+        .select2-selection {
+            min-height: 38px !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        
+        /* Fix for multiple select */
+        .select2-container--default .select2-selection--multiple {
+            padding: 4px !important;
+        }
+        
+        /* Fix for single select */
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 100% !important;
+        }
+        
+        /* Ensure dropdown options are visible and sized appropriately */
+        .select2-results {
+            max-height: 240px !important;
+            overflow-y: auto !important;
+        }
+        
+        /* Fix for dropdown positioning */
+        .select2-container--open .select2-dropdown {
+            left: 0 !important;
+        }
+        
+        /* Override modal z-index to ensure dropdowns appear on top */
+        .modal-backdrop {
+            z-index: 900 !important;
+        }
+        
+        .modal {
+            z-index: 1000 !important;
+        }
+        
+        .select2-container--open {
+            z-index: 1050 !important;
+        }
+    </style>
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
+    <script>
+        // Fix for Select2 position and width issues
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof django !== 'undefined' && django.jQuery) {
+                    django.jQuery('.select2, .admin-autocomplete, .select2-hidden-accessible').each(function() {
+                        var $el = django.jQuery(this);
+                        if ($el.data('select2')) {
+                            $el.select2('destroy');
+                            $el.select2({
+                                width: '100%',
+                                dropdownAutoWidth: true,
+                                dropdownParent: $el.parent(),
+                                dropdownCssClass: 'select2-dropdown-large',
+                                containerCssClass: 'select2-container-large',
+                            });
+                        }
+                    });
+                }
+            }, 1000);
+        });
+    </script>
+{% endblock %} 
