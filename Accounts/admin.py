@@ -39,9 +39,6 @@ class PurchaseProductInline(admin.TabularInline):
         return "-"  # Fallback if we can't predict
     serial_number.short_description = "Serial Number"
 
-    class Media:
-        js = ('admin/js/purchase_calculation.js',)
-
 # Inline for Payments within an Invoice
 class PaymentInline(admin.TabularInline):
     model = Payment
@@ -58,8 +55,9 @@ class PurchaseInvoiceAdmin(admin.ModelAdmin):
     list_filter = ('date', 'vendor')
     autocomplete_fields = ['vendor']
 
-    class Media:
-        js = ('admin/js/purchase_calculation.js',)
+    # Removing Media class to stop loading JavaScript
+    # class Media:
+    #     js = ('admin/js/purchase_calculation.js',)
 
     # Remove the static inlines list and replace with get_inlines method
     def get_inlines(self, request, obj=None):
@@ -264,10 +262,7 @@ class SalesInvoiceAdmin(admin.ModelAdmin):
         'payment_status' # Read-only
     ]
 
-    def get_inlines(self, request, obj=None):
-        if obj and obj.pk:  # If editing existing object
-            if '_saveasnew' not in request.POST:  # Not saving as new
-                return [SalesPaymentInline]  # Only show payment inline
+    def get_inlines(self, request, obj=None):        
         return [SalesLotInline, SalesProductInline, SalesPaymentInline]  # Show all inlines for new
 
     search_fields = ('invoice_number', 'vendor__name', )
@@ -306,23 +301,14 @@ class SalesInvoiceAdmin(admin.ModelAdmin):
     print_invoice.short_description = "Print Invoice"
 
     def save_formset(self, request, form, formset, change):
-        """Only save the payment formset when editing an existing invoice."""
-        # Check if we are editing an existing invoice (change=True)
-        if change:
-            # Check if the current formset being processed is the SalesPaymentInline
-            if formset.model == SalesPayment:
-                # If it's the payment inline, save it as usual
-                super().save_formset(request, form, formset, change)
-            else:
-                # If it's NOT the payment inline (i.e., Lot or Product)
+        if change and not getattr(formset.instance, 'pk', None):
+            if hasattr(formset.instance, 'sales_invoice'):
+                # If this is a nested inline (formset inside another formset)
                 # and we are *editing*, do nothing. This prevents validation.
                 pass
         else:
             # If creating a new invoice (change=False), save all formsets as usual.
             super().save_formset(request, form, formset, change)
-
-    class Media:
-        js = ('admin/js/sales_invoice.js',)
 
     def response_change(self, request, obj):
         if "_print_without_payments" in request.POST:

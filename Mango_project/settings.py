@@ -262,7 +262,7 @@ JAZZMIN_UI_TWEAKS = {
         "danger": "btn-danger",
         "success": "btn-success"
     },
-    "select2_theme": "krajee",
+    "select2_theme": "default",
     "field_control": {
         "input": "form-control",
         "select": "form-control",
