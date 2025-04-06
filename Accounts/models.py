@@ -358,7 +358,7 @@ class SalesInvoice(models.Model):
     def total_gross_weight(self):
         """Sum of gross weights of all sales products."""
         total = self.sales_products.aggregate(total=models.Sum('gross_weight'))['total'] or Decimal('0.00')
-        return total
+        return Decimal(round(total))
     
     @property
     def net_total(self):
@@ -449,9 +449,12 @@ class SalesProduct(models.Model):
             self.serial_number = last_item.serial_number + 1 if last_item else 1
         
         # Calculate net_weight:
-        # net_weight = gross_weight - (gross_weight * discount/100) - rotten
-        self.net_weight = round(self.gross_weight - ((self.gross_weight * self.discount) / Decimal('100.00')) - self.rotten, 2)
-        # Calculate total:
+        # First calculate raw_net_weight = gross_weight - (gross_weight * discount/100) - rotten
+        raw_net_weight = self.gross_weight - ((self.gross_weight * self.discount) / Decimal('100.00')) - self.rotten
+        # Round to whole kilograms
+        self.net_weight = Decimal(round(raw_net_weight))
+        
+        # Calculate total based on the rounded net_weight, ensuring exact multiplication
         self.total = (self.net_weight * self.price)
         
         super().save(*args, **kwargs)
