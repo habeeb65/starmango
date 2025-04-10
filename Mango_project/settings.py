@@ -35,7 +35,7 @@ ALLOWED_HOSTS = ['habeeb321.pythonanywhere.com', '127.0.0.1', 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
-    'jazzmin',
+    'suit',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -143,134 +143,44 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
-JAZZMIN_SETTINGS = {
-    # title of the window (Will default to current_admin_site.site_title if absent or None)
-    "site_title": "Star Mango Admin",
-    # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
-    "site_header": "Star Mango Supplies Korutla",
-    # Logo to use for your site, must be present in static files
-    "site_logo": None,
-    # CSS classes that are applied to the logo
-    "site_logo_classes": None,
-    # Logo to use for login form in dark themes
-    "login_logo": None,
-    # Relative path to a favicon for your site, will default to site_logo if absent
-    "site_icon": None,
-    # Welcome text on the login screen
-    "welcome_sign": "Welcome to Star Mango Supplies Admin",
-    # Copyright on the footer
-    "copyright": "Star Mango Ltd",
+# Django Suit configuration
+SUIT_CONFIG = {
+    # header
+    'ADMIN_NAME': 'Star Mango Admin',
+    'HEADER_DATE_FORMAT': 'l, j. F Y',
+    'HEADER_TIME_FORMAT': 'H:i',
 
-    # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
-    "user_avatar": None,
-
-    # Top menu
-    "topmenu_links": [
-        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Dashboard", "url": "admin-dashboard", "permissions": ["auth.view_user"]},
-        {"name": "Vendor Summary", "url": "/accounts/vendor-summary/"},
-        {"name": "Customer Summary", "url": "/accounts/customer-summary/"},
-    ],
-
-    # Custom links to append to app groups, keyed on app name
-    "custom_links": {
-        "Accounts": [
-            {"name": "Dashboard", "url": "admin-dashboard", "icon": "fas fa-chart-line"}
-        ]
+    # forms
+    'SHOW_REQUIRED_ASTERISK': True,
+    'CONFIRM_UNSAVED_CHANGES': True,
+    
+    # menu
+    'SEARCH_URL': '',
+    'MENU_ICONS': {
+        'auth': 'icon-lock',
+        'Accounts': 'icon-leaf',
     },
+    'MENU_OPEN_FIRST_CHILD': True,
+    'MENU_EXCLUDE': (),
+    'MENU': (
+        {'app': 'auth', 'label': 'Authorization', 'icon': 'icon-lock'},
+        {'app': 'Accounts', 'label': 'Star Mango', 'icon': 'icon-leaf', 'models': (
+            'PurchaseInvoice',
+            'SalesInvoice',
+            'PurchaseVendor',
+            'Customer',
+            'Product',
+            'Payment',
+            'Expense',
+            'Damages',
+        )},
+        {'label': 'Dashboard', 'url': '/admin-dashboard/', 'icon': 'icon-dashboard'},
+        {'label': 'Vendor Summary', 'url': '/accounts/vendor-summary/', 'icon': 'icon-user'},
+        {'label': 'Customer Summary', 'url': '/accounts/customer-summary/', 'icon': 'icon-user'},
+    ),
 
-    # Override app/model ordering by 3 ways
-    "order_with_respect_to": ["Accounts", "auth"],
-    "custom_app_order": ["Accounts", "auth"],
-    # Specify how models are ordered specifically by app
-    "custom_apps_models": {
-        "Accounts": [
-            "PurchaseInvoice",
-            "SalesInvoice",
-            "PurchaseVendor",
-            "Customer",
-            "Product",
-            "Payment",
-            "Expense",
-            "Damages",
-        ],
-    },
-
-    # Specify an app to hide all of its models
-    "hide_apps": [],
-
-    # Specify models to hide
-    "hide_models": [],
-
-    # Specify how models are ordered
-    "show_sidebar": True,
-    "navigation_expanded": True,
-
-    # Icons
-    "icons": {
-        "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user",
-        "auth.Group": "fas fa-users",
-        "Accounts.PurchaseInvoice": "fas fa-shopping-cart",
-        "Accounts.SalesInvoice": "fas fa-cash-register",
-        "Accounts.Product": "fas fa-box",
-        "Accounts.PurchaseVendor": "fas fa-users",
-        "Accounts.Customer": "fas fa-user-friends",
-        "Accounts.Expense": "fas fa-money-bill",
-        "Accounts.Damages": "fas fa-exclamation-triangle"
-    },
-
-    # UI Settings - Simplified to use built-in functionality
-    "custom_css": "css/custom_admin.css",
-    "custom_js": None,
-    "use_google_fonts_cdn": True,
-    "show_ui_builder": True,
-    "changeform_format": "horizontal_tabs",
-    "related_modal_active": True,
-    "form_size": "default",
-    "theme": "default",
-    "dark_mode_theme": None,
-}
-
-# Ensure jQuery is included properly
-JAZZMIN_INCLUDE_JQUERY = True
-JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": "navbar-primary",
-    "accent": "accent-primary",
-    "navbar": "navbar-white navbar-light",
-    "no_navbar_border": False,
-    "navbar_fixed": True,
-    "layout_boxed": False,
-    "footer_fixed": False,
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": True,
-    "sidebar_nav_compact_style": False,
-    "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": False,
-    "button_classes": {
-        "primary": "btn-outline-primary",
-        "secondary": "btn-outline-secondary",
-        "info": "btn-info",
-        "warning": "btn-warning",
-        "danger": "btn-danger",
-        "success": "btn-success"
-    },
-    "select2_theme": "default",
-    "field_control": {
-        "input": "form-control",
-        "select": "form-control",
-        "textarea": "form-control",
-        "number": "form-control",
-        "checkbox": "custom-control-input",
-        "radio": "custom-control-input"
-    }
+    # misc
+    'LIST_PER_PAGE': 15
 }
 
 ROOT_URLCONF = 'Mango_project.urls'
