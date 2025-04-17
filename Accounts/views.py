@@ -27,6 +27,15 @@ from django.urls import reverse
 from django.utils.dateparse import parse_date
 import datetime  # Import datetime module instead of just datetime class
 from .models import Payment  # Removed VendorBulkPayment, PaymentAllocation
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate
+import json
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 
 # Font and Logo Setup
@@ -1155,4 +1164,33 @@ def test_connection(request):
     Simple view to test server connection.
     """
     return HttpResponse("Server is running correctly! Connection test successful.")
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_login(request):
+    """API endpoint for authentication"""
+    data = request.data
+    username = data.get('username', '')
+    password = data.get('password', '')
+    
+    user = authenticate(username=username, password=password)
+    
+    if user is not None:
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'token': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser,
+            }
+        })
+    else:
+        return Response({"detail": "Invalid credentials"}, status=401)
 

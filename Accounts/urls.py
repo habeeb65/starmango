@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views  # Import views directly from the current module
+from rest_framework_simplejwt.views import TokenRefreshView
 
 
 urlpatterns = [
@@ -26,5 +27,9 @@ urlpatterns = [
     path('test-connection/', views.test_connection, name='test_connection'),
     
     # API Endpoints
-    path('api/vendor-outstanding-invoices/', views.vendor_outstanding_invoices_api, name='vendor_outstanding_invoices_api'),
+    path('vendor-outstanding-invoices/', views.vendor_outstanding_invoices_api, name='vendor_outstanding_invoices_api'),
+    
+    # Authentication API endpoints (removed api/ prefix)
+    path('auth/login/', views.api_login, name='api_login'),
+    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

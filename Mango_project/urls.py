@@ -21,6 +21,8 @@ from django.shortcuts import redirect
 from django.conf.urls.static import static
 from Accounts.views import generate_sales_invoice_pdf, dashboard, admin_dashboard
 from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from Accounts import views 
 
 def homepage(request):
     """Simple homepage with a redirect to admin"""
@@ -97,6 +99,7 @@ urlpatterns = [
     path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
     path('admin/', admin.site.urls),
     path('accounts/', include ('Accounts.urls')),
+    path('api/', include('Accounts.urls')),  # Include all Accounts URLs under /api/ as well
     path('sales_invoice/<int:invoice_id>/pdf/', generate_sales_invoice_pdf, name='generate_sales_invoice_pdf'),
 ]
 
