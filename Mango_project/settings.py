@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'import_export',
 ]
 
 MIDDLEWARE = [
@@ -172,14 +173,20 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"name": "Dashboard", "url": "admin-dashboard", "permissions": ["auth.view_user"]},
+        {"name": "Credit Dashboard", "url": "credit_dashboard", "permissions": ["auth.view_user"]},
         {"name": "Vendor Summary", "url": "/accounts/vendor-summary/"},
         {"name": "Customer Summary", "url": "/accounts/customer-summary/"},
+        {"name": "Vendor Bulk Payment", "url": "/accounts/vendor-bulk-payment/"},
+        {"name": "Customer Bulk Payment", "url": "/accounts/customer-bulk-payment/"},
+        {"name": "Inventory Management", "url": "/accounts/inventory-management/"},
     ],
 
     # Custom links to append to app groups, keyed on app name
     "custom_links": {
         "Accounts": [
-            {"name": "Dashboard", "url": "admin-dashboard", "icon": "fas fa-chart-line"}
+            {"name": "Dashboard", "url": "admin-dashboard", "icon": "fas fa-chart-line"},
+            {"name": "Credit Dashboard", "url": "credit_dashboard", "icon": "fas fa-credit-card"},
+            {"name": "Credit Report", "url": "credit_report", "icon": "fas fa-file-invoice"}
         ]
     },
 

@@ -130,6 +130,7 @@
                 </th>
                 <th>Contact</th>
                 <th>Address</th>
+                <th class="numeric">Credit Limit</th>
                 <th class="numeric">
                     <a href="?sort={% if sort_by == 'total_sales' %}-{% endif %}total_sales&from_date={{ from_date }}&to_date={{ to_date }}&search={{ search_query }}" class="sortable">
                         Total Sales
@@ -148,6 +149,7 @@
                         {% if sort_by == 'due_amount' %}▲{% elif sort_by == '-due_amount' %}▼{% endif %}
                     </a>
                 </th>
+                <th>Credit Status</th>
             </tr>
         </thead>
         <tbody>
@@ -160,10 +162,22 @@
                 </td>
                 <td>{{ customer.contact_number|default_if_none:"" }}</td>
                 <td>{{ customer.address|default_if_none:"" }}</td>
+                <td class="numeric">{% if customer.credit_limit > 0 %}₹{{ customer.credit_limit|floatformat:2 }}{% else %}-{% endif %}</td>
                 <td class="numeric">₹{{ customer.total_sales|floatformat:2 }}</td>
                 <td class="numeric">₹{{ customer.total_payments|floatformat:2 }}</td>
                 <td class="numeric {% if customer.due_amount < 0 %}negative{% elif customer.due_amount > 0 %}positive{% endif %}">
                     ₹{{ customer.due_amount|floatformat:2 }}
+                </td>
+                <td>
+                    {% if customer.is_over_credit_limit %}
+                    <span style="color: red; font-weight: bold;">⚠️ Over Limit</span>
+                    {% elif customer.credit_limit > 0 and customer.due_amount >= customer.credit_limit|mul:0.8 %}
+                    <span style="color: orange; font-weight: bold;">⚠️ Near Limit</span>
+                    {% elif customer.credit_limit > 0 %}
+                    <span style="color: green;">Within Limit</span>
+                    {% else %}
+                    <span>No Limit Set</span>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}

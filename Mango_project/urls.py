@@ -23,6 +23,8 @@ from Accounts.views import generate_sales_invoice_pdf, dashboard, admin_dashboar
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from Accounts import views 
+# Import the credit dashboard views
+from Accounts.admin import credit_dashboard_view, credit_report_view
 
 def homepage(request):
     """Simple homepage with a redirect to admin"""
@@ -97,6 +99,11 @@ urlpatterns = [
     path('', homepage, name='home'),  # Root URL shows homepage
     path('admin-redirect/', redirect_to_admin, name='admin-redirect'),  # Redirect to admin
     path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
+    
+    # Add credit dashboard URLs before the main admin site
+    path('admin/credit-dashboard/', admin.site.admin_view(credit_dashboard_view), name='credit_dashboard'),
+    path('admin/credit-report/', admin.site.admin_view(credit_report_view), name='credit_report'),
+    
     path('admin/', admin.site.urls),
     path('accounts/', include ('Accounts.urls')),
     path('api/', include('Accounts.urls')),  # Include all Accounts URLs under /api/ as well

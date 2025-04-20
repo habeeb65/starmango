@@ -1,0 +1,367 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load summary_tags %}
+
+{% block extrahead %}
+<style>
+    .inventory-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .filter-section {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .filter-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-form .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .filter-form input, .filter-form button, .filter-form select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .filter-form button {
+        background-color: #417690;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 8px 15px;
+    }
+    .filter-form button:hover {
+        background-color: #2b5070;
+    }
+    .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .inventory-table th, .inventory-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .inventory-table th {
+        background-color: #f2f2f2;
+    }
+    .product-row {
+        cursor: pointer;
+    }
+    .product-row:hover {
+        background-color: #f0f0f0;
+    }
+    .numeric {
+        text-align: right;
+    }
+    .section-title {
+        margin-top: 30px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+    .reset-link {
+        display: inline-block;
+        margin-top: 10px;
+        color: #417690;
+        text-decoration: none;
+    }
+    .stats-card {
+        background-color: #fff;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .stats-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .stat-item {
+        flex: 1;
+        min-width: 200px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        padding: 15px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #417690;
+        margin: 10px 0;
+    }
+    .stat-label {
+        font-size: 14px;
+        color: #666;
+    }
+    .card-title {
+        margin-top: 0;
+        font-size: 18px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+    }
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 20px;
+    }
+    .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        border-bottom: none;
+        margin-bottom: -1px;
+    }
+    .tab.active {
+        background-color: white;
+        border-color: #ddd;
+        border-bottom-color: white;
+        font-weight: bold;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .submit-btn {
+        background-color: #417690;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .submit-btn:hover {
+        background-color: #2b5070;
+    }
+    .low-stock {
+        background-color: #ffeeee;
+    }
+    .medium-stock {
+        background-color: #ffffee;
+    }
+    .good-stock {
+        background-color: #eeffee;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Handle product row clicks
+        const productRows = document.querySelectorAll('.product-row');
+        productRows.forEach(row => {
+            row.addEventListener('click', function() {
+                // Get product ID
+                const productId = this.getAttribute('data-product-id');
+                // Redirect to the same page with product ID parameter
+                window.location.href = window.location.pathname + 
+                    '?product_id=' + productId + 
+                    '&search={{ search_query|default:"" }}';
+            });
+        });
+
+        // Tab functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    });
+</script>
+
+<div class="inventory-container">
+    <h1>Inventory Management</h1>
+    
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="form-group">
+                <label for="search">Search Product:</label>
+                <input type="text" id="search" name="search" placeholder="Product name..." value="{{ search_query }}">
+            </div>
+            <div class="form-group">
+                <button type="submit">Search</button>
+                <a href="{% url 'inventory_management' %}" class="reset-link">Reset</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Inventory Overview Stats -->
+    <div class="stats-card">
+        <h3 class="card-title">Inventory Overview</h3>
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-label">Total Products</div>
+                <div class="stat-value">{{ inventory_summary|length }}</div>
+                <div class="stat-label">With Stock</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Total Stock Value</div>
+                <div class="stat-value">₹{{ inventory_summary|sum_dict_values:'total_value'|floatformat:2 }}</div>
+                <div class="stat-label">Current Value</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Total Available Stock</div>
+                <div class="stat-value">{{ inventory_summary|sum_dict_values:'available'|floatformat:2 }} kg</div>
+                <div class="stat-label">Available Quantity</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Available Lots</div>
+                <div class="stat-value">{{ purchase_lots|length }}</div>
+                <div class="stat-label">With Stock</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabs for different views -->
+    <div class="tabs">
+        <div class="tab active" data-tab="tab-product-summary">Product Summary</div>
+        <div class="tab" data-tab="tab-lot-summary">Lot Summary</div>
+        {% if selected_product %}
+        <div class="tab" data-tab="tab-product-detail">Product Detail</div>
+        {% endif %}
+    </div>
+    
+    <!-- Product Summary Tab -->
+    <div id="tab-product-summary" class="tab-content active">
+        <h2 class="section-title">Inventory by Product</h2>
+        
+        {% if inventory_summary %}
+        <table class="inventory-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th class="numeric">Total Purchased (kg)</th>
+                    <th class="numeric">Total Sold (kg)</th>
+                    <th class="numeric">Available Stock (kg)</th>
+                    <th class="numeric">Avg. Purchase Price (₹)</th>
+                    <th class="numeric">Total Value (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory_summary %}
+                <tr class="product-row {% if item.available < 100 %}low-stock{% elif item.available < 500 %}medium-stock{% else %}good-stock{% endif %}" data-product-id="{{ item.product.id }}">
+                    <td>{{ item.product.name }}</td>
+                    <td class="numeric">{{ item.total_purchased|floatformat:2 }}</td>
+                    <td class="numeric">{{ item.total_sold|floatformat:2 }}</td>
+                    <td class="numeric">{{ item.available|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ item.avg_price|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ item.total_value|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No inventory data available.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Lot Summary Tab -->
+    <div id="tab-lot-summary" class="tab-content">
+        <h2 class="section-title">Inventory by Lot</h2>
+        
+        {% if purchase_lots %}
+        <table class="inventory-table">
+            <thead>
+                <tr>
+                    <th>Lot Number</th>
+                    <th>Invoice Date</th>
+                    <th>Vendor</th>
+                    <th class="numeric">Total Purchased (kg)</th>
+                    <th class="numeric">Total Sold (kg)</th>
+                    <th class="numeric">Available Stock (kg)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lot in purchase_lots %}
+                <tr>
+                    <td>{{ lot.invoice_number }}</td>
+                    <td>{{ lot.date }}</td>
+                    <td>{{ lot.vendor.name }}</td>
+                    <td class="numeric">{{ lot.purchase_products.all|sum_dict_values:'quantity'|floatformat:2 }}</td>
+                    <td class="numeric">{{ lot.sold_quantity|floatformat:2 }}</td>
+                    <td class="numeric">{{ lot.remaining_quantity|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No lot data available.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Product Detail Tab -->
+    {% if selected_product %}
+    <div id="tab-product-detail" class="tab-content">
+        <h2 class="section-title">Inventory Details for {{ selected_product.name }}</h2>
+        
+        {% if product_lots %}
+        <table class="inventory-table">
+            <thead>
+                <tr>
+                    <th>Lot Number</th>
+                    <th>Invoice Date</th>
+                    <th>Vendor</th>
+                    <th class="numeric">Purchased (kg)</th>
+                    <th class="numeric">Sold (kg)</th>
+                    <th class="numeric">Available (kg)</th>
+                    <th class="numeric">Purchase Price (₹)</th>
+                    <th class="numeric">Value (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lot in product_lots %}
+                <tr>
+                    <td>{{ lot.invoice.invoice_number }}</td>
+                    <td>{{ lot.invoice.date }}</td>
+                    <td>{{ lot.invoice.vendor.name }}</td>
+                    <td class="numeric">{{ lot.quantity|floatformat:2 }}</td>
+                    <td class="numeric">{{ lot.sold_quantity|floatformat:2 }}</td>
+                    <td class="numeric">{{ lot.remaining_quantity|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ lot.price|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ lot.remaining_quantity|multiply:lot.price|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No inventory details available for this product.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

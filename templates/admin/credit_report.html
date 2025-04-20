@@ -1,0 +1,317 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .report-section {
+      margin-bottom: 30px;
+    }
+    .report-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #ccc;
+    }
+    .danger {
+      color: #d32f2f;
+    }
+    .warning {
+      color: #f57c00;
+    }
+    .success {
+      color: #388e3c;
+    }
+    .neutral {
+      color: #2196f3;
+    }
+    .customer-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .customer-table th, .customer-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    .customer-table th {
+      background-color: #f2f2f2;
+    }
+    .customer-table tr:hover {
+      background-color: #f5f5f5;
+    }
+    .total-row {
+      font-weight: bold;
+      background-color: #f9f9f9;
+    }
+    .report-actions {
+      margin-bottom: 20px;
+    }
+    .print-button {
+      background-color: #2196f3;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .print-button:hover {
+      background-color: #0b7dda;
+    }
+    @media print {
+      .report-actions, .breadcrumbs, #header, .custom-nav {
+        display: none;
+      }
+      .customer-table {
+        page-break-inside: auto;
+      }
+      .customer-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+      .report-section {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="report-title">Credit Status Report</div>
+  
+  <div class="report-actions">
+    <a href="{% url 'credit_dashboard' %}" class="button">Back to Dashboard</a>
+    <button class="print-button" onclick="window.print()">Print Report</button>
+  </div>
+  
+  <div class="report-section">
+    <div class="section-title danger">Customers Over Credit Limit ({{ over_limit|length }})</div>
+    {% if over_limit %}
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact Number</th>
+          <th>Credit Limit</th>
+          <th>Outstanding Amount</th>
+          <th>% Over Limit</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in over_limit %}
+        <tr>
+          <td>{{ customer.name }}</td>
+          <td>{{ customer.contact_number }}</td>
+          <td>₹{{ customer.credit_limit|floatformat:2 }}</td>
+          <td>₹{{ customer.total_due|floatformat:2 }}</td>
+          <td>
+            {% if customer.credit_limit > 0 %}
+              {{ customer.total_due|floatformat:2|default:"0" }}%
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'admin:Accounts_customer_change' customer.id %}">Edit Limit</a> | 
+            <a href="{% url 'admin:Accounts_salesinvoice_changelist' %}?vendor__id__exact={{ customer.id }}">View Invoices</a>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="3">Total for Over Limit Customers:</td>
+          <td>₹{{ total_over_limit|floatformat:2 }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+    {% else %}
+    <p>No customers are currently over their credit limit.</p>
+    {% endif %}
+  </div>
+  
+  <div class="report-section">
+    <div class="section-title warning">Customers Near Credit Limit ({{ near_limit|length }})</div>
+    {% if near_limit %}
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact Number</th>
+          <th>Credit Limit</th>
+          <th>Outstanding Amount</th>
+          <th>% of Limit</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in near_limit %}
+        <tr>
+          <td>{{ customer.name }}</td>
+          <td>{{ customer.contact_number }}</td>
+          <td>₹{{ customer.credit_limit|floatformat:2 }}</td>
+          <td>₹{{ customer.total_due|floatformat:2 }}</td>
+          <td>
+            {% if customer.credit_limit > 0 %}
+              {{ customer.total_due|floatformat:2 }}%
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'admin:Accounts_customer_change' customer.id %}">Edit Limit</a> | 
+            <a href="{% url 'admin:Accounts_salesinvoice_changelist' %}?vendor__id__exact={{ customer.id }}">View Invoices</a>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="3">Total for Near Limit Customers:</td>
+          <td>₹{{ total_near_limit|floatformat:2 }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+    {% else %}
+    <p>No customers are currently near their credit limit.</p>
+    {% endif %}
+  </div>
+  
+  <div class="report-section">
+    <div class="section-title success">Customers Within Credit Limit ({{ within_limit|length }})</div>
+    {% if within_limit %}
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact Number</th>
+          <th>Credit Limit</th>
+          <th>Outstanding Amount</th>
+          <th>% of Limit</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in within_limit %}
+        <tr>
+          <td>{{ customer.name }}</td>
+          <td>{{ customer.contact_number }}</td>
+          <td>₹{{ customer.credit_limit|floatformat:2 }}</td>
+          <td>₹{{ customer.total_due|floatformat:2 }}</td>
+          <td>
+            {% if customer.credit_limit > 0 %}
+              {{ customer.total_due|floatformat:2 }}%
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'admin:Accounts_customer_change' customer.id %}">Edit Limit</a> | 
+            <a href="{% url 'admin:Accounts_salesinvoice_changelist' %}?vendor__id__exact={{ customer.id }}">View Invoices</a>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="3">Total for Within Limit Customers:</td>
+          <td>₹{{ total_within_limit|floatformat:2 }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+    {% else %}
+    <p>No customers are currently within their credit limit.</p>
+    {% endif %}
+  </div>
+  
+  <div class="report-section">
+    <div class="section-title neutral">Customers with No Limit Set ({{ no_limit|length }})</div>
+    {% if no_limit %}
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact Number</th>
+          <th>Credit Limit</th>
+          <th>Outstanding Amount</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in no_limit %}
+        <tr>
+          <td>{{ customer.name }}</td>
+          <td>{{ customer.contact_number }}</td>
+          <td>₹{{ customer.credit_limit|floatformat:2 }}</td>
+          <td>₹{{ customer.total_due|floatformat:2 }}</td>
+          <td>
+            <a href="{% url 'admin:Accounts_customer_change' customer.id %}">Set Limit</a> | 
+            <a href="{% url 'admin:Accounts_salesinvoice_changelist' %}?vendor__id__exact={{ customer.id }}">View Invoices</a>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="3">Total for No Limit Customers:</td>
+          <td>₹{{ total_no_limit|floatformat:2 }}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    {% else %}
+    <p>All customers have credit limits set.</p>
+    {% endif %}
+  </div>
+  
+  <div class="report-section">
+    <div class="section-title">Summary</div>
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Customer Count</th>
+          <th>Total Outstanding</th>
+          <th>% of Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="danger">Over Limit</td>
+          <td>{{ over_limit|length }}</td>
+          <td>₹{{ total_over_limit|floatformat:2 }}</td>
+          <td>{{ over_limit_percent|floatformat:1 }}%</td>
+        </tr>
+        <tr>
+          <td class="warning">Near Limit</td>
+          <td>{{ near_limit|length }}</td>
+          <td>₹{{ total_near_limit|floatformat:2 }}</td>
+          <td>{{ near_limit_percent|floatformat:1 }}%</td>
+        </tr>
+        <tr>
+          <td class="success">Within Limit</td>
+          <td>{{ within_limit|length }}</td>
+          <td>₹{{ total_within_limit|floatformat:2 }}</td>
+          <td>{{ within_limit_percent|floatformat:1 }}%</td>
+        </tr>
+        <tr>
+          <td class="neutral">No Limit Set</td>
+          <td>{{ no_limit|length }}</td>
+          <td>₹{{ total_no_limit|floatformat:2 }}</td>
+          <td>{{ no_limit_percent|floatformat:1 }}%</td>
+        </tr>
+        <tr class="total-row">
+          <td>Grand Total</td>
+          <td>{{ over_limit|length|add:near_limit|length|add:within_limit|length|add:no_limit|length }}</td>
+          <td>₹{{ grand_total|floatformat:2 }}</td>
+          <td>100%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %} 

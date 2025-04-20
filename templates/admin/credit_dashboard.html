@@ -1,0 +1,143 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .summary-box {
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .summary-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .summary-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #447e9b;
+    }
+    .warning {
+      color: #f57c00;
+    }
+    .danger {
+      color: #d32f2f;
+    }
+    .success {
+      color: #388e3c;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .customer-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .customer-table th, .customer-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    .customer-table th {
+      background-color: #f2f2f2;
+    }
+    .customer-table tr:hover {
+      background-color: #f5f5f5;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <h1>Credit Limit Dashboard</h1>
+  
+  <div class="summary-box" style="margin-bottom: 20px;">
+    <a href="{% url 'credit_report' %}" class="button">View Detailed Credit Report</a>
+    <a href="{% url 'admin:Accounts_customer_changelist' %}" class="button">Manage Customer Limits</a>
+  </div>
+  
+  <div class="summary-grid">
+    <div class="summary-box">
+      <div class="summary-title">Total Customers</div>
+      <div class="summary-value">{{ total_customers }}</div>
+    </div>
+    
+    <div class="summary-box">
+      <div class="summary-title">Total Credit Limit</div>
+      <div class="summary-value">₹{{ total_credit_limit|floatformat:2 }}</div>
+    </div>
+    
+    <div class="summary-box">
+      <div class="summary-title">Customers Over Limit</div>
+      <div class="summary-value danger">{{ over_limit_count }}</div>
+    </div>
+    
+    <div class="summary-box">
+      <div class="summary-title">Customers Near Limit</div>
+      <div class="summary-value warning">{{ near_limit_count }}</div>
+    </div>
+    
+    <div class="summary-box">
+      <div class="summary-title">Total Sales</div>
+      <div class="summary-value">₹{{ total_sales|floatformat:2 }}</div>
+    </div>
+    
+    <div class="summary-box">
+      <div class="summary-title">Total Purchases</div>
+      <div class="summary-value">₹{{ total_purchases|floatformat:2 }}</div>
+    </div>
+    
+    <div class="summary-box">
+      <div class="summary-title">Total Outstanding Due</div>
+      <div class="summary-value danger">₹{{ total_due|floatformat:2 }}</div>
+    </div>
+  </div>
+  
+  <h2>Top Customers by Outstanding Amount</h2>
+  <div class="summary-box">
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Credit Limit</th>
+          <th>Outstanding Amount</th>
+          <th>Credit Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in top_customers %}
+        <tr>
+          <td>{{ customer.name }}</td>
+          <td>₹{{ customer.credit_limit|floatformat:2 }}</td>
+          <td>₹{{ customer.total_due|floatformat:2 }}</td>
+          <td>
+            {% if customer.credit_status == "Over Limit" %}
+              <span class="danger">⚠️ {{ customer.credit_status }}</span>
+            {% elif customer.credit_status == "Near Limit" %}
+              <span class="warning">⚠️ {{ customer.credit_status }}</span>
+            {% else %}
+              <span class="success">{{ customer.credit_status }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'admin:Accounts_customer_change' customer.id %}">Edit Limit</a> | 
+            <a href="{% url 'admin:Accounts_salesinvoice_changelist' %}?vendor__id__exact={{ customer.id }}">View Invoices</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="summary-box">
+    <a href="{% url 'admin:Accounts_customer_changelist' %}" class="button">Manage All Customers</a>
+  </div>
+</div>
+{% endblock %} 

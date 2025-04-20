@@ -1,0 +1,88 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:Accounts_'|add:opts.model_name|add:'_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% translate "Import CSV" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="import-csv-form">
+    <h1>{{ title }}</h1>
+    <p>Upload a CSV file to import data. The first row should contain column headers.</p>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            <label for="csv_file">Select CSV file:</label>
+            <input type="file" name="csv_file" id="csv_file" accept=".csv" required>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <input type="submit" value="Upload and Import">
+            <a href=".." class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+    
+    <div class="csv-format-info">
+        <h2>CSV Format Information</h2>
+        
+        {% if opts.model_name == 'purchaseinvoice' %}
+        <p>Expected CSV format for Purchase Invoices:</p>
+        <pre>
+invoice_number,lot_number,date,net_total,payment_issuer_name,vendor_id,status,status_notes
+MS2025R01,LOT-01,2025-03-26,231586.70,Abdul Rafi,2,available,
+MS2025R02,LOT-02,2025-03-27,307809.00,Abdul Rafi,3,available,
+        </pre>
+        {% elif opts.model_name == 'salesinvoice' %}
+        <p>Expected CSV format for Sales Invoices:</p>
+        <pre>
+id,invoice_number,invoice_date,vehicle_number,gross_vehicle_weight,reference,no_of_crates,cost_per_crate,purchased_crates_quantity,purchased_crates_unit_price,vendor_id
+4,SA2025S01,2025-03-30,0,0.00,,775.00,24.00,125.00,40.00,1
+7,SA2025S02,2025-04-07,RJ 09 GE 3280,11310.00,,773.00,35.00,773.00,75.00,2
+        </pre>
+        {% endif %}
+        
+        <p>Notes:</p>
+        <ul>
+            <li>Date format should be YYYY-MM-DD</li>
+            <li>The vendor_id field should contain the ID of an existing vendor</li>
+            <li>Numeric values should use period (.) as decimal separator</li>
+            <li>If a record with the same invoice_number already exists, it will be updated</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+    .import-csv-form {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .csv-format-info {
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    pre {
+        background-color: #f5f5f5;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow-x: auto;
+    }
+    .button.cancel-link {
+        background-color: #f44336;
+        color: white;
+        padding: 10px 15px;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+</style>
+{% endblock %} 

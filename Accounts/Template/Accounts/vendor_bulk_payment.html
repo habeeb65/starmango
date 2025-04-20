@@ -1,0 +1,379 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load summary_tags %}
+
+{% block extrahead %}
+<style>
+    .bulk-payment-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .filter-section {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .filter-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-form .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .filter-form input, .filter-form button, .filter-form select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .filter-form button {
+        background-color: #417690;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 8px 15px;
+    }
+    .filter-form button:hover {
+        background-color: #2b5070;
+    }
+    .payment-form {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 5px;
+        margin-top: 20px;
+        border: 1px solid #ddd;
+    }
+    .payment-form h3 {
+        margin-top: 0;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    .payment-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .payment-details .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .vendor-table, .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .vendor-table th, .vendor-table td,
+    .invoice-table th, .invoice-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .vendor-table th, .invoice-table th {
+        background-color: #f2f2f2;
+    }
+    .vendor-table tr:nth-child(even),
+    .invoice-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .vendor-table tr:hover,
+    .invoice-table tr:hover {
+        background-color: #f1f1f1;
+    }
+    .numeric {
+        text-align: right;
+    }
+    .submit-row {
+        margin-top: 20px;
+        text-align: right;
+    }
+    .submit-btn {
+        background-color: #79aec8;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .submit-btn:hover {
+        background-color: #417690;
+    }
+    .selected-row {
+        background-color: #e0f7fa !important;
+    }
+    .invoice-checkbox {
+        margin-right: 5px;
+    }
+    .negative {
+        color: red;
+    }
+    .positive {
+        color: green;
+    }
+    .reset-link {
+        margin-left: 10px;
+        color: #666;
+        text-decoration: none;
+    }
+    .reset-link:hover {
+        text-decoration: underline;
+    }
+    .vendor-section, .invoice-section {
+        margin-bottom: 20px;
+    }
+    .section-title {
+        background-color: #f2f2f2;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Handle vendor selection
+        const vendorRows = document.querySelectorAll('.vendor-row');
+        vendorRows.forEach(row => {
+            row.addEventListener('click', function() {
+                // Get vendor ID
+                const vendorId = this.getAttribute('data-vendor-id');
+                // Redirect to the same page with vendor ID parameter
+                window.location.href = window.location.pathname + 
+                    '?vendor_id=' + vendorId + 
+                    '&from_date={{ from_date|default:"" }}' + 
+                    '&to_date={{ to_date|default:"" }}' + 
+                    '&search={{ search_query|default:"" }}';
+            });
+        });
+
+        // Calculate total selected amount
+        const calculateSelectedTotal = function() {
+            let total = 0;
+            const checkboxes = document.querySelectorAll('.invoice-checkbox:checked');
+            checkboxes.forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const dueAmount = parseFloat(row.getAttribute('data-due-amount'));
+                total += dueAmount;
+            });
+            
+            // Update the payment amount field
+            const paymentAmountField = document.getElementById('payment_amount');
+            if (paymentAmountField) {
+                paymentAmountField.value = total.toFixed(2);
+            }
+        };
+
+        // Add event listeners to checkboxes
+        const invoiceCheckboxes = document.querySelectorAll('.invoice-checkbox');
+        invoiceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Highlight the row if checked
+                const row = this.closest('tr');
+                if (this.checked) {
+                    row.classList.add('selected-row');
+                } else {
+                    row.classList.remove('selected-row');
+                }
+                
+                // Recalculate total
+                calculateSelectedTotal();
+            });
+        });
+
+        // Select all button
+        const selectAllBtn = document.getElementById('select-all-invoices');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                invoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    checkbox.closest('tr').classList.add('selected-row');
+                });
+                calculateSelectedTotal();
+            });
+        }
+
+        // Deselect all button
+        const deselectAllBtn = document.getElementById('deselect-all-invoices');
+        if (deselectAllBtn) {
+            deselectAllBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                invoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                    checkbox.closest('tr').classList.remove('selected-row');
+                });
+                calculateSelectedTotal();
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-payment-container">
+    <h1>Vendor Bulk Payment</h1>
+    
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="form-group">
+                <label for="from_date">From Date:</label>
+                <input type="date" id="from_date" name="from_date" value="{{ from_date }}">
+            </div>
+            <div class="form-group">
+                <label for="to_date">To Date:</label>
+                <input type="date" id="to_date" name="to_date" value="{{ to_date }}">
+            </div>
+            <div class="form-group">
+                <label for="search">Search Vendor:</label>
+                <input type="text" id="search" name="search" placeholder="Name, Contact, Area..." value="{{ search_query }}">
+            </div>
+            <div class="form-group">
+                <button type="submit">Apply Filters</button>
+                <a href="{% url 'vendor_bulk_payment' %}" class="reset-link">Reset</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Vendor Selection Section -->
+    <div class="vendor-section">
+        <h2 class="section-title">Step 1: Select a Vendor</h2>
+        <table class="vendor-table">
+            <thead>
+                <tr>
+                    <th>Vendor Name</th>
+                    <th>Contact</th>
+                    <th>Area</th>
+                    <th class="numeric">Total Purchases</th>
+                    <th class="numeric">Total Payments</th>
+                    <th class="numeric">Due Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vendor in vendors %}
+                <tr class="vendor-row {% if selected_vendor and selected_vendor.id == vendor.id %}selected-row{% endif %}" data-vendor-id="{{ vendor.id }}">
+                    <td>{{ vendor.name }}</td>
+                    <td>{{ vendor.contact_number|default_if_none:"" }}</td>
+                    <td>{{ vendor.area|default_if_none:"" }}</td>
+                    <td class="numeric">₹{{ vendor.total_purchases|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ vendor.total_payments|floatformat:2 }}</td>
+                    <td class="numeric {% if vendor.due_amount < 0 %}negative{% elif vendor.due_amount > 0 %}positive{% endif %}">
+                        ₹{{ vendor.due_amount|floatformat:2 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center;">No vendors with outstanding balances found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if selected_vendor %}
+    <!-- Invoice Selection and Payment Form -->
+    <form method="post" action="">
+        {% csrf_token %}
+        <input type="hidden" name="vendor_id" value="{{ selected_vendor.id }}">
+        
+        <!-- Invoice Selection Section -->
+        <div class="invoice-section">
+            <h2 class="section-title">Step 2: Select Invoices for Payment ({{ selected_vendor.name }})</h2>
+            
+            <div style="margin-bottom: 10px;">
+                <button id="select-all-invoices" class="submit-btn" style="background-color: #4CAF50; margin-right: 10px;">Select All</button>
+                <button id="deselect-all-invoices" class="submit-btn" style="background-color: #f44336;">Deselect All</button>
+            </div>
+            
+            <table class="invoice-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">Select</th>
+                        <th>Invoice No.</th>
+                        <th>Lot No.</th>
+                        <th>Date</th>
+                        <th class="numeric">Total Amount</th>
+                        <th class="numeric">Paid Amount</th>
+                        <th class="numeric">Due Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in outstanding_invoices %}
+                    <tr data-due-amount="{{ invoice.due_amount }}">
+                        <td style="text-align: center;">
+                            <input type="checkbox" name="invoice_ids" value="{{ invoice.id }}" class="invoice-checkbox">
+                        </td>
+                        <td>{{ invoice.invoice_number }}</td>
+                        <td>{{ invoice.lot_number }}</td>
+                        <td>{{ invoice.date|date:"d-m-Y" }}</td>
+                        <td class="numeric">₹{{ invoice.net_total_after_cash_cutting|floatformat:2 }}</td>
+                        <td class="numeric">₹{{ invoice.paid_amount|floatformat:2 }}</td>
+                        <td class="numeric positive">₹{{ invoice.due_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center;">No outstanding invoices found for this vendor.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="text-align: right;"><strong>Total Outstanding:</strong></td>
+                        <td class="numeric positive">
+                            <strong>₹{{ outstanding_invoices|dictsumby:'due_amount'|floatformat:2 }}</strong>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Payment Details Section -->
+        <div class="payment-form">
+            <h2 class="section-title">Step 3: Enter Payment Details</h2>
+            <div class="payment-details">
+                <div class="form-group">
+                    <label for="payment_amount">Payment Amount (₹):</label>
+                    <input type="number" step="0.01" min="0" id="payment_amount" name="payment_amount" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment_date">Payment Date:</label>
+                    <input type="date" id="payment_date" name="payment_date" value="{{ today }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment_method">Payment Method:</label>
+                    <select id="payment_method" name="payment_method" required>
+                        <option value="Cash">Cash</option>
+                        <option value="Check">Check</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reference_number">Reference Number:</label>
+                    <input type="text" id="reference_number" name="reference_number" placeholder="Check No., Transaction ID, etc.">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="notes">Notes:</label>
+                <textarea id="notes" name="notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                          placeholder="Additional notes about this payment..."></textarea>
+            </div>
+            <div class="submit-row">
+                <button type="submit" class="submit-btn">Process Payment</button>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %} 

@@ -23,6 +23,15 @@ urlpatterns = [
     # Add vendor popup
     path('add-vendor/', views.add_vendor, name='add_vendor'),
     
+    # Vendor bulk payment
+    path('vendor-bulk-payment/', views.vendor_bulk_payment, name='vendor_bulk_payment'),
+    
+    # Customer bulk payment
+    path('customer-bulk-payment/', views.customer_bulk_payment, name='customer_bulk_payment'),
+    
+    # Inventory management
+    path('inventory-management/', views.inventory_management, name='inventory_management'),
+    
     # Test connection
     path('test-connection/', views.test_connection, name='test_connection'),
     

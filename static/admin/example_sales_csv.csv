@@ -1,0 +1,4 @@
+Invoice Number,Date,Customer Name,Net Total,Paid Amount,Status
+SALE-001,2023-05-16,Customer A,28500.75,28500.75,Completed
+SALE-002,2023-06-22,Customer B,19750.50,10000.00,Partial
+SALE-003,2023-07-12,Customer C,35250.00,0.00,Unpaid 

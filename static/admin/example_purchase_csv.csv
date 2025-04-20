@@ -1,0 +1,4 @@
+Invoice Number,Date,Vendor Name,Lot Number,Net Total,Paid Amount,Status
+INV-001,2023-05-15,ABC Suppliers,LOT-123,25000.50,10000.00,Pending
+INV-002,2023-06-20,XYZ Distributors,LOT-456,18500.75,18500.75,Completed
+INV-003,2023-07-10,Premium Goods,LOT-789,32750.00,15000.00,Pending 

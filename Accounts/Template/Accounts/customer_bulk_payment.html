@@ -1,0 +1,379 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load summary_tags %}
+
+{% block extrahead %}
+<style>
+    .bulk-payment-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .filter-section {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .filter-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-form .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .filter-form input, .filter-form button, .filter-form select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .filter-form button {
+        background-color: #417690;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 8px 15px;
+    }
+    .filter-form button:hover {
+        background-color: #2b5070;
+    }
+    .payment-form {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 5px;
+        margin-top: 20px;
+        border: 1px solid #ddd;
+    }
+    .payment-form h3 {
+        margin-top: 0;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    .payment-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .payment-details .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .customer-table, .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .customer-table th, .customer-table td,
+    .invoice-table th, .invoice-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .customer-table th, .invoice-table th {
+        background-color: #f2f2f2;
+    }
+    .customer-row {
+        cursor: pointer;
+    }
+    .customer-row:hover {
+        background-color: #f0f0f0;
+    }
+    .numeric {
+        text-align: right;
+    }
+    .credit-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: bold;
+    }
+    .status-over {
+        background-color: #ffcccc;
+        color: #cc0000;
+    }
+    .status-near {
+        background-color: #fff2cc;
+        color: #996600;
+    }
+    .status-within {
+        background-color: #ccffcc;
+        color: #006600;
+    }
+    .status-none {
+        background-color: #e6e6e6;
+        color: #666666;
+    }
+    .section-title {
+        margin-top: 30px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+    .reset-link {
+        display: inline-block;
+        margin-top: 10px;
+        color: #417690;
+        text-decoration: none;
+    }
+    .submit-btn {
+        background-color: #417690;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .submit-btn:hover {
+        background-color: #2b5070;
+    }
+    .submit-row {
+        margin-top: 20px;
+        text-align: right;
+    }
+    .invoice-checkbox {
+        transform: scale(1.5);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Handle customer selection
+        const customerRows = document.querySelectorAll('.customer-row');
+        customerRows.forEach(row => {
+            row.addEventListener('click', function() {
+                // Get customer ID
+                const customerId = this.getAttribute('data-customer-id');
+                // Redirect to the same page with customer ID parameter
+                window.location.href = window.location.pathname + 
+                    '?customer_id=' + customerId + 
+                    '&from_date={{ from_date|default:"" }}' + 
+                    '&to_date={{ to_date|default:"" }}' + 
+                    '&search={{ search_query|default:"" }}';
+            });
+        });
+
+        // Calculate total selected amount
+        const calculateSelectedTotal = function() {
+            let total = 0;
+            const checkboxes = document.querySelectorAll('.invoice-checkbox:checked');
+            checkboxes.forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const dueAmount = parseFloat(row.getAttribute('data-due-amount'));
+                total += dueAmount;
+            });
+            
+            // Update the payment amount field
+            const paymentAmountField = document.getElementById('payment_amount');
+            if (paymentAmountField) {
+                paymentAmountField.value = total.toFixed(2);
+            }
+        };
+
+        // Attach event listeners to checkboxes
+        const invoiceCheckboxes = document.querySelectorAll('.invoice-checkbox');
+        invoiceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', calculateSelectedTotal);
+        });
+
+        // Select all invoices functionality
+        const selectAllBtn = document.getElementById('select-all-invoices');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                invoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+                calculateSelectedTotal();
+            });
+        }
+
+        // Deselect all invoices functionality
+        const deselectAllBtn = document.getElementById('deselect-all-invoices');
+        if (deselectAllBtn) {
+            deselectAllBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                invoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                calculateSelectedTotal();
+            });
+        }
+    });
+</script>
+
+<div class="bulk-payment-container">
+    <h1>Customer Bulk Payment</h1>
+    
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="form-group">
+                <label for="from_date">From Date:</label>
+                <input type="date" id="from_date" name="from_date" value="{{ from_date }}">
+            </div>
+            <div class="form-group">
+                <label for="to_date">To Date:</label>
+                <input type="date" id="to_date" name="to_date" value="{{ to_date }}">
+            </div>
+            <div class="form-group">
+                <label for="search">Search Customer:</label>
+                <input type="text" id="search" name="search" placeholder="Name, Contact, Address..." value="{{ search_query }}">
+            </div>
+            <div class="form-group">
+                <button type="submit">Apply Filters</button>
+                <a href="{% url 'customer_bulk_payment' %}" class="reset-link">Reset</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Customer Selection Section -->
+    {% if not selected_customer %}
+    <div class="customer-section">
+        <h2 class="section-title">Step 1: Select a Customer</h2>
+        
+        {% if customers %}
+        <table class="customer-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Contact Number</th>
+                    <th>Address</th>
+                    <th class="numeric">Total Sales</th>
+                    <th class="numeric">Total Payments</th>
+                    <th class="numeric">Due Amount</th>
+                    <th>Credit Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr class="customer-row" data-customer-id="{{ customer.id }}">
+                    <td>{{ customer.name }}</td>
+                    <td>{{ customer.contact_number|default:"-" }}</td>
+                    <td>{{ customer.address|default:"-" }}</td>
+                    <td class="numeric">₹{{ customer.total_sales|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ customer.total_payments|floatformat:2 }}</td>
+                    <td class="numeric">₹{{ customer.due_amount|floatformat:2 }}</td>
+                    <td>
+                        {% if customer.credit_status == "Over Limit" %}
+                        <span class="credit-status status-over">Over Limit</span>
+                        {% elif customer.credit_status == "Near Limit" %}
+                        <span class="credit-status status-near">Near Limit</span>
+                        {% elif customer.credit_status == "Within Limit" %}
+                        <span class="credit-status status-within">Within Limit</span>
+                        {% else %}
+                        <span class="credit-status status-none">No Limit Set</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No customers with outstanding balances found.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Payment Form Section -->
+    {% if selected_customer %}
+    <form method="post" action="">
+        {% csrf_token %}
+        <input type="hidden" name="customer_id" value="{{ selected_customer.id }}">
+        
+        <!-- Invoice Selection Section -->
+        <div class="invoice-section">
+            <h2 class="section-title">Step 2: Select Invoices for Payment ({{ selected_customer.name }})</h2>
+            
+            <div style="margin-bottom: 10px;">
+                <button id="select-all-invoices" class="submit-btn" style="background-color: #4CAF50; margin-right: 10px;">Select All</button>
+                <button id="deselect-all-invoices" class="submit-btn" style="background-color: #f44336;">Deselect All</button>
+            </div>
+            
+            <table class="invoice-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">Select</th>
+                        <th>Invoice No.</th>
+                        <th>Date</th>
+                        <th class="numeric">Total Amount</th>
+                        <th class="numeric">Paid Amount</th>
+                        <th class="numeric">Due Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if outstanding_invoices %}
+                    {% for invoice in outstanding_invoices %}
+                    <tr data-due-amount="{{ invoice.due_amount }}">
+                        <td style="text-align: center;">
+                            <input type="checkbox" name="invoice_ids" value="{{ invoice.id }}" class="invoice-checkbox">
+                        </td>
+                        <td>{{ invoice.invoice_number }}</td>
+                        <td>{{ invoice.invoice_date }}</td>
+                        <td class="numeric">₹{{ invoice.net_total_after_packaging|floatformat:2 }}</td>
+                        <td class="numeric">₹{{ invoice.paid_amount|floatformat:2 }}</td>
+                        <td class="numeric">₹{{ invoice.due_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center;">No outstanding invoices found for this customer.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Payment Details Section -->
+        <div class="payment-form">
+            <h3>Payment Details</h3>
+            
+            <div class="payment-details">
+                <div class="form-group">
+                    <label for="payment_amount">Payment Amount (₹):</label>
+                    <input type="number" id="payment_amount" name="payment_amount" step="0.01" min="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="payment_date">Payment Date:</label>
+                    <input type="date" id="payment_date" name="payment_date" value="{{ today }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="payment_method">Payment Method:</label>
+                    <select id="payment_method" name="payment_method" required>
+                        <option value="Cash">Cash</option>
+                        <option value="upi">UPI (GPay/PhonePay)</option>
+                        <option value="account_pay">Account Pay</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reference_number">Reference Number (Optional):</label>
+                    <input type="text" id="reference_number" name="reference_number">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Notes (Optional):</label>
+                <textarea id="notes" name="notes" rows="3"></textarea>
+            </div>
+            
+            <div class="submit-row">
+                <button type="submit" class="submit-btn">Process Payment</button>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %} 

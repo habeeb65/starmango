@@ -6,7 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from django.conf import settings
 from .models import PurchaseInvoice
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
@@ -14,28 +14,26 @@ import os
 from reportlab.lib.units import inch
 from reportlab.platypus import Frame
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField, Q
-from .models import PurchaseVendor, PurchaseInvoice
-from .models import SalesInvoice, Expense, Damages, Packaging_Invoice
+from django.db.models.functions import Coalesce
+from .models import PurchaseVendor, PurchaseInvoice, SalesInvoice, Expense, Damages, Packaging_Invoice, PurchaseProduct, Customer, Product, SalesLot
 from django.http import JsonResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.contrib.staticfiles.finders import find
 import base64
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import PurchaseInvoice, SalesInvoice, Expense, Damages, PurchaseVendor, Customer, Packaging_Invoice, PurchaseProduct
-from django.urls import reverse
-from django.utils.dateparse import parse_date
-import datetime  # Import datetime module instead of just datetime class
-from .models import Payment  # Removed VendorBulkPayment, PaymentAllocation
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
 import json
+from datetime import date, timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from django.contrib import messages
+from django.utils.dateparse import parse_date
 
 
 # Font and Logo Setup
@@ -63,8 +61,8 @@ def admin_dashboard(request):
 
     # Default to last 30 days if no dates provided
     if not from_date and not to_date:
-        to_date = datetime.date.today()
-        from_date = to_date - datetime.timedelta(days=30)
+        to_date = date.today()
+        from_date = to_date - timedelta(days=30)
         from_date_str = from_date.strftime('%Y-%m-%d')
         to_date_str = to_date.strftime('%Y-%m-%d')
 
@@ -251,7 +249,25 @@ def find(path):
         return result
     return None
 
+@staff_member_required
 def create_invoice(request):
+    if request.method == 'POST':
+        # Process form data
+        customer_id = request.POST.get('customer')
+        
+        # Check if customer exists and has a credit limit
+        if customer_id:
+            customer = get_object_or_404(Customer, id=customer_id)
+            if customer.is_over_credit_limit:
+                messages.warning(request, f"⚠️ WARNING: {customer.name} has exceeded their credit limit of ₹{customer.credit_limit}. Current due: ₹{customer.total_due}")
+            elif customer.credit_limit > 0 and customer.total_due >= (customer.credit_limit * Decimal('0.8')):
+                messages.warning(request, f"⚠️ CAUTION: {customer.name} is approaching their credit limit of ₹{customer.credit_limit}. Current due: ₹{customer.total_due}")
+        
+        # Rest of form processing
+        # ...
+    
+    # Regular form display code
+    # ...
     return render(request, 'Accounts/create_invoice.html')
 
 def generate_invoice_pdf(request, invoice_id):
@@ -1193,4 +1209,428 @@ def api_login(request):
         })
     else:
         return Response({"detail": "Invalid credentials"}, status=401)
+
+@staff_member_required
+def vendor_bulk_payment(request):
+    """
+    View for processing bulk payments to vendors
+    """
+    # Get filter parameters
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
+    search_query = request.GET.get('search', '')
+    vendor_id = request.GET.get('vendor_id')
+    
+    # Parse dates
+    from_date = parse_date(from_date_str) if from_date_str else None
+    to_date = parse_date(to_date_str) if to_date_str else None
+    
+    # Get vendors with outstanding balances
+    vendors = PurchaseVendor.objects.all().distinct()
+    
+    if search_query:
+        vendors = vendors.filter(
+            Q(name__icontains=search_query) |
+            Q(contact_number__icontains=search_query) |
+            Q(area__icontains=search_query)
+        )
+    
+    # Process form submission for bulk payment
+    if request.method == 'POST':
+        selected_vendor_id = request.POST.get('vendor_id')
+        payment_amount = Decimal(request.POST.get('payment_amount', 0))
+        payment_date = parse_date(request.POST.get('payment_date')) or date.today()
+        selected_invoice_ids = request.POST.getlist('invoice_ids')
+        payment_method = request.POST.get('payment_method', 'Cash')
+        reference_number = request.POST.get('reference_number', '')
+        notes = request.POST.get('notes', '')
+        
+        if selected_vendor_id and payment_amount > 0:
+            vendor = PurchaseVendor.objects.get(id=selected_vendor_id)
+            
+            # If specific invoices are selected, allocate payment to them
+            if selected_invoice_ids:
+                remaining_amount = payment_amount
+                invoices = SalesInvoice.objects.filter(id__in=selected_invoice_ids).order_by('invoice_date')
+                
+                if invoices.exists():
+                    # Create payment and associate with the first invoice
+                    first_invoice = invoices.first()
+                    payment = SalesPayment.objects.create(
+                        invoice=first_invoice,  # Associate with first invoice initially
+                        amount=payment_amount,
+                        date=payment_date,
+                        payment_mode=payment_method,
+                        attachment=None
+                    )
+                    
+                    for invoice in invoices:
+                        if remaining_amount <= 0:
+                            break
+                            
+                        # Calculate how much can be allocated to this invoice
+                        invoice_due = invoice.due_amount
+                        allocation = min(invoice_due, remaining_amount)
+                        
+                        if allocation > 0 and invoice.id != first_invoice.id:
+                            # Link payment to other invoices (first one is already linked)
+                            invoice.payments.add(payment)
+                            remaining_amount -= allocation
+                else:
+                    messages.error(request, "No valid invoices selected.")
+                    return redirect('vendor_bulk_payment')
+            # If no specific invoices selected, apply to oldest outstanding invoice
+            else:
+                outstanding_invoices = PurchaseInvoice.objects.filter(
+                    vendor=vendor
+                ).exclude(
+                    net_total_after_cash_cutting=F('paid_amount')
+                ).order_by('date')
+                
+                if outstanding_invoices.exists():
+                    # Create payment and associate with the first outstanding invoice
+                    first_invoice = outstanding_invoices.first()
+                    payment = SalesPayment.objects.create(
+                        invoice=first_invoice,  # Associate with first invoice initially
+                        amount=payment_amount,
+                        date=payment_date,
+                        payment_mode=payment_method,
+                        attachment=None
+                    )
+                    
+                    remaining = payment_amount
+                    for invoice in outstanding_invoices:
+                        if remaining <= 0:
+                            break
+                            
+                        invoice_due = invoice.due_amount
+                        allocation = min(invoice_due, remaining)
+                        
+                        if allocation > 0 and invoice.id != first_invoice.id:
+                            # Link payment to other invoices (first one is already linked)
+                            invoice.payments.add(payment)
+                            remaining -= allocation
+                else:
+                    messages.error(request, "No outstanding invoices found for this vendor.")
+                    return redirect('vendor_bulk_payment')
+            
+            return redirect('vendor_purchase_summary')
+    
+    # Get list of vendors with their due amounts
+    vendor_data = []
+    for vendor in vendors:
+        # Get all invoices for this vendor
+        invoices = vendor.invoices.all()
+        
+        # Apply date filters if provided
+        if from_date:
+            invoices = invoices.filter(date__gte=from_date)
+        if to_date:
+            invoices = invoices.filter(date__lte=to_date)
+        
+        # Calculate total and due amounts
+        total_purchases = sum(invoice.net_total for invoice in invoices)
+        total_cash_cutting = sum(invoice.net_total * Decimal('0.02') for invoice in invoices)
+        total_payments = sum(invoice.paid_amount for invoice in invoices)
+        due_amount = total_purchases - total_cash_cutting - total_payments
+        
+        # Only include vendors with outstanding balances
+        if due_amount > 0:
+            vendor.total_purchases = total_purchases
+            vendor.total_payments = total_payments
+            vendor.due_amount = due_amount
+            vendor_data.append(vendor)
+    
+    # Get outstanding invoices for a specific vendor if selected
+    outstanding_invoices = []
+    selected_vendor = None
+    
+    if vendor_id:
+        selected_vendor = get_object_or_404(PurchaseVendor, id=vendor_id)
+        invoices = PurchaseInvoice.objects.filter(vendor=selected_vendor)
+        
+        # Apply date filters if provided
+        if from_date:
+            invoices = invoices.filter(date__gte=from_date)
+        if to_date:
+            invoices = invoices.filter(date__lte=to_date)
+        
+        # Get only invoices with outstanding balances
+        outstanding_invoices = [
+            invoice for invoice in invoices
+            if invoice.due_amount > 0
+        ]
+    
+    context = {
+        'vendors': vendor_data,
+        'from_date': from_date_str,
+        'to_date': to_date_str,
+        'search_query': search_query,
+        'selected_vendor': selected_vendor,
+        'outstanding_invoices': outstanding_invoices,
+        'today': date.today().strftime('%Y-%m-%d'),
+    }
+    
+    return render(request, 'Accounts/vendor_bulk_payment.html', context)
+
+@staff_member_required
+def customer_bulk_payment(request):
+    """
+    View for processing bulk payments from customers
+    """
+    # Get filter parameters
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
+    search_query = request.GET.get('search', '')
+    customer_id = request.GET.get('customer_id')
+    
+    # Parse dates
+    from_date = parse_date(from_date_str) if from_date_str else None
+    to_date = parse_date(to_date_str) if to_date_str else None
+    
+    # Get customers with outstanding balances
+    customers = Customer.objects.all().distinct()
+    
+    if search_query:
+        customers = customers.filter(
+            Q(name__icontains=search_query) |
+            Q(contact_number__icontains=search_query) |
+            Q(address__icontains=search_query)
+        )
+    
+    # Process form submission for bulk payment
+    if request.method == 'POST':
+        selected_customer_id = request.POST.get('customer_id')
+        payment_amount = Decimal(request.POST.get('payment_amount', 0))
+        payment_date = parse_date(request.POST.get('payment_date')) or date.today()
+        selected_invoice_ids = request.POST.getlist('invoice_ids')
+        payment_method = request.POST.get('payment_method', 'Cash')
+        reference_number = request.POST.get('reference_number', '')
+        notes = request.POST.get('notes', '')
+        
+        if selected_customer_id and payment_amount > 0:
+            customer = Customer.objects.get(id=selected_customer_id)
+            
+            # If specific invoices are selected, allocate payment to them
+            if selected_invoice_ids:
+                remaining_amount = payment_amount
+                invoices = SalesInvoice.objects.filter(id__in=selected_invoice_ids).order_by('invoice_date')
+                
+                if invoices.exists():
+                    # Create payment and associate with the first invoice
+                    first_invoice = invoices.first()
+                    payment = SalesPayment.objects.create(
+                        invoice=first_invoice,  # Associate with first invoice initially
+                        amount=payment_amount,
+                        date=payment_date,
+                        payment_mode=payment_method,
+                        attachment=None
+                    )
+                    
+                    for invoice in invoices:
+                        if remaining_amount <= 0:
+                            break
+                            
+                        # Calculate how much can be allocated to this invoice
+                        invoice_due = invoice.due_amount
+                        allocation = min(invoice_due, remaining_amount)
+                        
+                        if allocation > 0 and invoice.id != first_invoice.id:
+                            # Link payment to other invoices (first one is already linked)
+                            SalesPayment.objects.create(
+                                invoice=invoice,
+                                amount=allocation,
+                                date=payment_date,
+                                payment_mode=payment_method,
+                                attachment=None
+                            )
+                            remaining_amount -= allocation
+                else:
+                    messages.error(request, "No valid invoices selected.")
+                    return redirect('customer_bulk_payment')
+            # If no specific invoices selected, apply to oldest outstanding invoice
+            else:
+                outstanding_invoices = SalesInvoice.objects.filter(
+                    vendor=customer
+                ).exclude(
+                    net_total_after_packaging=F('paid_amount')
+                ).order_by('invoice_date')
+                
+                if outstanding_invoices.exists():
+                    remaining = payment_amount
+                    for invoice in outstanding_invoices:
+                        if remaining <= 0:
+                            break
+                            
+                        invoice_due = invoice.due_amount
+                        allocation = min(invoice_due, remaining)
+                        
+                        if allocation > 0:
+                            SalesPayment.objects.create(
+                                invoice=invoice,
+                                amount=allocation,
+                                date=payment_date,
+                                payment_mode=payment_method,
+                                attachment=None
+                            )
+                            remaining -= allocation
+                else:
+                    messages.error(request, "No outstanding invoices found for this customer.")
+                    return redirect('customer_bulk_payment')
+            
+            return redirect('customer_purchase_summary')
+    
+    # Get list of customers with their due amounts
+    customer_data = []
+    for customer in customers:
+        invoices = SalesInvoice.objects.filter(vendor=customer)
+        
+        # Apply date filters if provided
+        if from_date:
+            invoices = invoices.filter(invoice_date__gte=from_date)
+        if to_date:
+            invoices = invoices.filter(invoice_date__lte=to_date)
+        
+        # Calculate total due amount
+        due_amount = sum(invoice.due_amount for invoice in invoices)
+        
+        # Only include customers with outstanding balances
+        if due_amount > 0:
+            customer.total_sales = sum(invoice.net_total_after_packaging for invoice in invoices)
+            customer.total_payments = sum(invoice.paid_amount for invoice in invoices)
+            customer.due_amount = due_amount
+            customer_data.append(customer)
+    
+    # Get outstanding invoices for a specific customer if selected
+    outstanding_invoices = []
+    selected_customer = None
+    
+    if customer_id:
+        selected_customer = get_object_or_404(Customer, id=customer_id)
+        invoices = SalesInvoice.objects.filter(vendor=selected_customer)
+        
+        # Apply date filters if provided
+        if from_date:
+            invoices = invoices.filter(invoice_date__gte=from_date)
+        if to_date:
+            invoices = invoices.filter(invoice_date__lte=to_date)
+        
+        # Get only invoices with outstanding balances
+        outstanding_invoices = [
+            invoice for invoice in invoices
+            if invoice.due_amount > 0
+        ]
+    
+    context = {
+        'customers': customer_data,
+        'from_date': from_date_str,
+        'to_date': to_date_str,
+        'search_query': search_query,
+        'selected_customer': selected_customer,
+        'outstanding_invoices': outstanding_invoices,
+        'today': date.today().strftime('%Y-%m-%d'),
+    }
+    
+    return render(request, 'Accounts/customer_bulk_payment.html', context)
+
+@staff_member_required
+def inventory_management(request):
+    """
+    View for managing inventory
+    """
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    product_id = request.GET.get('product_id')
+    
+    # Get all available products with their quantities
+    products = Product.objects.all().order_by('name')
+    
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query)
+        )
+    
+    # Get all purchase invoices (lots) with available quantity
+    purchase_lots = PurchaseInvoice.objects.annotate(
+        sold_quantity=Coalesce(Sum('sales_lots__quantity'), Decimal('0')),
+        remaining_quantity=ExpressionWrapper(
+            Sum('purchase_products__quantity') - F('sold_quantity'),
+            output_field=DecimalField()
+        )
+    ).filter(remaining_quantity__gt=0).order_by('-date')
+    
+    # Get inventory summary by product
+    inventory_summary = []
+    for product in products:
+        # Get available quantity for this product across all lots
+        product_lots = PurchaseProduct.objects.filter(product=product)
+        
+        # Calculate total purchased quantity
+        total_purchased = product_lots.aggregate(
+            total=Sum('quantity')
+        )['total'] or Decimal('0')
+        
+        # Calculate total sold quantity
+        total_sold = SalesLot.objects.filter(
+            purchase_invoice__purchase_products__product=product
+        ).aggregate(
+            total=Sum('quantity')
+        )['total'] or Decimal('0')
+        
+        # Calculate available quantity
+        available = total_purchased - total_sold
+        
+        # Calculate average purchase price
+        avg_price = Decimal('0')
+        if total_purchased > 0:
+            avg_price = product_lots.aggregate(
+                total_value=Sum(F('quantity') * F('price'))
+            )['total_value'] or Decimal('0')
+            
+            if total_purchased > 0:
+                avg_price = avg_price / total_purchased
+        
+        # Only include products with available quantity
+        if available > 0:
+            inventory_summary.append({
+                'product': product,
+                'total_purchased': total_purchased,
+                'total_sold': total_sold,
+                'available': available,
+                'avg_price': avg_price,
+                'total_value': available * avg_price
+            })
+    
+    # Sort inventory summary by available quantity (descending)
+    inventory_summary.sort(key=lambda x: x['available'], reverse=True)
+    
+    # Get inventory details for a specific product if selected
+    product_lots = []
+    selected_product = None
+    
+    if product_id:
+        selected_product = get_object_or_404(Product, id=product_id)
+        product_lots = PurchaseProduct.objects.filter(
+            product=selected_product
+        ).select_related('invoice').annotate(
+            sold_quantity=Coalesce(
+                Sum('invoice__sales_lots__quantity', 
+                    filter=Q(invoice__sales_lots__purchase_product__product=selected_product)),
+                Decimal('0')
+            ),
+            remaining_quantity=ExpressionWrapper(
+                F('quantity') - F('sold_quantity'),
+                output_field=DecimalField()
+            )
+        ).filter(remaining_quantity__gt=0).order_by('-invoice__date')
+    
+    context = {
+        'inventory_summary': inventory_summary,
+        'product_lots': product_lots,
+        'selected_product': selected_product,
+        'search_query': search_query,
+        'purchase_lots': purchase_lots,
+    }
+    
+    return render(request, 'Accounts/inventory_management.html', context)
 

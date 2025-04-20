@@ -1,5 +1,8 @@
 {% extends "admin/base.html" %}
 {% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block extrahead %}
 {{ block.super }}
@@ -59,6 +62,73 @@ function dismissAddRelatedObjectPopup(win, objId, objName) {
     win.close();
 }
 </script>
+<style>
+    .custom-nav {
+        background-color: #417690;
+        color: white;
+        padding: 10px 40px;
+        margin-bottom: 20px;
+    }
+    .custom-nav a {
+        color: white;
+        margin-right: 20px;
+        text-decoration: none;
+        font-weight: bold;
+    }
+    .custom-nav a:hover {
+        text-decoration: underline;
+    }
+
+    /* Hide any duplicate add buttons from Django's default layout */
+    .addlink + .addlink {
+        display: none !important;
+    }
+
+    /* Fix top navigation bar spacing */
+    #header {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Make sure the content area has proper spacing */
+    #content {
+        padding: 20px;
+    }
+
+    /* Adjust the action buttons in the list view */
+    .actions {
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+
+    /* Make the import button more visible */
+    .button {
+        font-weight: bold;
+    }
+    
+    /* Ensure the add button has the standard Django green style */
+    .addlink {
+        background: #79aec8 url(../img/icon-addlink.svg) 0 center no-repeat;
+        padding-left: 16px;
+        background-color: #417690;
+    }
+
+    /* Fix inline form layout for SalesLotInline */
+    .inline-group .tabular .module select {
+        width: auto !important; /* Prevent select boxes from stretching excessively */
+        min-width: 200px; /* Ensure a minimum width */
+    }
+
+    .inline-group .form-row {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* Add spacing between elements */
+    }
+
+    .inline-group .form-row > div {
+        flex-shrink: 0; /* Prevent elements from shrinking too much */
+    }
+</style>
 {% endblock %}
 
 {% block branding %}
@@ -67,4 +137,15 @@ function dismissAddRelatedObjectPopup(win, objId, objName) {
 </h1>
 {% endblock %}
 
-{% block nav-global %}{% endblock %} 
+{% block nav-global %}
+<div class="custom-nav">
+    <a href="{% url 'admin:index' %}">Dashboard</a>
+    <a href="{% url 'admin:Accounts_customer_changelist' %}">Customers</a>
+    <a href="/admin/credit-dashboard/">Credit Dashboard</a>
+    <a href="{% url 'admin:Accounts_salesinvoice_changelist' %}">Sales</a>
+    <a href="{% url 'admin:Accounts_purchaseinvoice_changelist' %}">Purchases</a>
+    <a href="{% url 'vendor_bulk_payment' %}">Vendor Payments</a>
+    <a href="{% url 'customer_bulk_payment' %}">Customer Payments</a>
+    <a href="{% url 'inventory_management' %}">Inventory</a>
+</div>
+{% endblock %} 

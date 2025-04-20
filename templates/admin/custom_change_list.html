@@ -1,0 +1,33 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools %}
+<div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+  <div style="display: flex; gap: 10px;">
+    {% if has_import_permission %}
+    <a href="{{ import_url }}" class="button" style="background-color: #417690; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
+      <i class="icon-plus"></i> {% translate "Import CSV" %}
+    </a>
+    {% endif %}
+    <button type="submit" form="changelist-form" name="action" value="export_as_csv" class="button" style="background-color: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; border: none; cursor: pointer;">
+      <i class="icon-download"></i> {% translate "Export Selected" %}
+    </button>
+  </div>
+  
+  {% if has_add_permission %}
+  <div style="margin-left: 20px;">
+    {% url cl.opts|admin_urlname:'add' as add_url %}
+    <a href="{% add_preserved_filters add_url is_popup to_field %}" style="background-color: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">
+      <span style="font-weight: bold; font-size: 14px; margin-right: 5px;">+</span> 
+      {% blocktranslate with cl.opts.verbose_name as name %}Add {{ name }}{% endblocktranslate %}
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% comment %}Hide the standard object-tools-items section to prevent duplicate buttons{% endcomment %}
+{% endblock %}
+
+{% block result_list %}
+{{ block.super }}
+{% endblock %} 

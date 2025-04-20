@@ -499,9 +499,43 @@ class Customer(models.Model):
     name = models.CharField(max_length=100)
     contact_number = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+    credit_limit = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        default=0,
+        help_text="Maximum credit limit allowed (0 means no specific limit)"
+    )
     
     def __str__(self):
         return self.name
+    
+    @property
+    def total_due(self):
+        """Calculate total outstanding balance for this customer"""
+        return sum(invoice.due_amount for invoice in self.sales_invoices.all())
+        
+    @property
+    def is_over_credit_limit(self):
+        """Check if customer has exceeded their credit limit"""
+        if self.credit_limit <= 0:  # 0 or negative means no specific limit
+            return False
+        return self.total_due > self.credit_limit
+    
+    @property
+    def credit_status(self):
+        """Return credit status as a string"""
+        if not self.credit_limit or self.credit_limit <= 0:
+            return "No Limit Set"
+        
+        utilization = (self.total_due / self.credit_limit) * 100
+        
+        if utilization >= 100:
+            return "Over Limit"
+        elif utilization >= 80:
+            return "Near Limit"
+        else:
+            return "Within Limit"
+
 class Expense(models.Model):
     date = models.DateField()
     paid_by = models.CharField(max_length=100)

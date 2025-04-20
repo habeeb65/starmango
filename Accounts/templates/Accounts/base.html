@@ -69,6 +69,11 @@
                 </a>
             </li>
             <li>
+                <a href="{% url 'customer_bulk_payment' %}" class="custom-nav-link {% if request.path == '/accounts/customer-bulk-payment/' %}active{% endif %}">
+                    Customer Bulk Payment
+                </a>
+            </li>
+            <li>
                 <a href="{% url 'customer_purchase_summary' %}" class="custom-nav-link {% if request.path == '/accounts/customer-summary/' %}active{% endif %}">
                     Customer Summary
                 </a>

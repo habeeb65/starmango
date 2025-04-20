@@ -1,0 +1,4 @@
+invoice_number,customer_name,invoice_date,net_total,vehicle_number,gross_vehicle_weight,reference,paid_amount
+SA2025S03,John Doe,2023-06-15,5000.00,KA-01-AB-1234,1200.00,Order #12345,2500.00
+SA2025S04,Jane Smith,2023-06-16,7500.00,KA-02-CD-5678,1450.00,Order #67890,7500.00
+SA2025S05,Robert Johnson,2023-06-17,3200.00,KA-03-EF-9012,980.00,Order #24680,1000.00 
