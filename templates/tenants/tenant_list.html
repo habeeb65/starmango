@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Available Businesses - Star Mango{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-4">Available Businesses</h1>
+            <p class="lead">Select a business to access or register a new one</p>
+        </div>
+        <div class="col-auto align-self-center">
+            <a href="{% url 'tenants:register_tenant' %}" class="btn btn-primary">Register New Business</a>
+        </div>
+    </div>
+    
+    {% if tenants %}
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for tenant in tenants %}
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                {% if tenant.logo %}
+                <img src="{{ tenant.logo.url }}" class="card-img-top tenant-logo" alt="{{ tenant.name }}">
+                {% else %}
+                <div class="card-img-top tenant-logo-placeholder" style="background-color: {{ tenant.primary_color }}">
+                    {{ tenant.name|first }}
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ tenant.name }}</h5>
+                    <p class="card-text text-muted">
+                        {{ tenant.get_business_type_display }}
+                        <br>
+                        <small>Created on {{ tenant.created_at|date:"M d, Y" }}</small>
+                    </p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="/{{ tenant.slug }}/" class="btn btn-outline-primary w-100">Access Dashboard</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">No Businesses Available</h4>
+        <p>There are no businesses registered in the system yet. Be the first to register your business!</p>
+        <hr>
+        <a href="{% url 'tenants:register_tenant' %}" class="btn btn-info">Register New Business</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .tenant-logo {
+        height: 140px;
+        object-fit: contain;
+        padding: 15px;
+    }
+    
+    .tenant-logo-placeholder {
+        height: 140px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 4rem;
+        color: white;
+        font-weight: bold;
+    }
+</style>
+{% endblock %} 

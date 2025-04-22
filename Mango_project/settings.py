@@ -48,9 +48,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'import_export',
+    'tenants',
 ]
 
 MIDDLEWARE = [
+    'tenants.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -306,4 +308,20 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+]
+
+# Multi-tenant settings
+TENANT_EXEMPT_URLS = [
+    'admin',
+    'static',
+    'media',
+    'accounts',
+    'api',
+    '',  # Root URL
+]
+
+# Add tenant-aware authentication backend
+AUTHENTICATION_BACKENDS = [
+    'tenants.backends.TenantAwareBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]

@@ -29,6 +29,10 @@ from django.contrib.auth.admin import UserAdmin, GroupAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DateWidget
 from import_export.admin import ImportExportModelAdmin
+from import_export.results import RowResult
+
+# Import our CSV import/export functionality
+from .admin_csv import SalesInvoiceCSVMixin, PurchaseInvoiceCSVMixin
 
 admin.site.site_header = "Star Mango Supplies Korutla"   # Header displayed at the top of the admin
 admin.site.site_title = "Star Mango Supplies Korutla"     # Title tag for the admin pages
@@ -110,6 +114,28 @@ class PurchaseInvoiceResource(resources.ModelResource):
                 except Exception as e:
                     print(f"Error creating vendor: {e}")
         
+        # Check if vendor_id exists but vendor doesn't
+        if 'vendor_id' in row and row['vendor_id']:
+            vendor_id = row['vendor_id']
+            try:
+                # Try to get the vendor by ID
+                PurchaseVendor.objects.get(id=vendor_id)
+                print(f"Found vendor with ID: {vendor_id}")
+            except PurchaseVendor.DoesNotExist:
+                # Vendor doesn't exist, create a new one with the ID and payment_issuer_name
+                payment_issuer_name = row.get('payment_issuer_name', f"Vendor {vendor_id}")
+                try:
+                    # Use a raw SQL query to create a vendor with a specific ID
+                    from django.db import connection
+                    cursor = connection.cursor()
+                    cursor.execute(
+                        "INSERT INTO Accounts_purchasevendor (id, name, contact_number, area) VALUES (%s, %s, %s, %s)",
+                        [vendor_id, payment_issuer_name, "", ""]
+                    )
+                    print(f"Created new vendor with ID {vendor_id} and name '{payment_issuer_name}'")
+                except Exception as e:
+                    print(f"Error creating vendor with ID {vendor_id}: {e}")
+        
         # Add default values for required fields if missing
         if 'date' not in row or not row['date']:
             row['date'] = timezone.now().strftime('%Y-%m-%d')
@@ -139,7 +165,7 @@ class PurchaseInvoiceResource(resources.ModelResource):
         return super().skip_row(instance, original, row, import_validation_errors)
 
 # Admin for PurchaseInvoice
-class PurchaseInvoiceAdmin(ImportExportModelAdmin):
+class PurchaseInvoiceAdmin(PurchaseInvoiceCSVMixin, ImportExportModelAdmin):
     resource_class = PurchaseInvoiceResource
     model = PurchaseInvoice
     list_display = ('invoice_number','lot_number', 'vendor_name', 'net_total_after_cash_cutting', 'paid_amount', 'due_amount_display', 'payment_status', 'date', 'print_invoice')
@@ -597,7 +623,7 @@ class SalesInvoiceResource(resources.ModelResource):
             # Don't fail the import for product errors
 
 # Admin for SalesInvoice
-class SalesInvoiceAdmin(ImportExportModelAdmin):
+class SalesInvoiceAdmin(SalesInvoiceCSVMixin, ImportExportModelAdmin):
     resource_class = SalesInvoiceResource
     list_display = (
         'invoice_number',

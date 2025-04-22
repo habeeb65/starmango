@@ -1,0 +1,117 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:'|add:opts.app_label|add:'_'|add:opts.model_name|add:'_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% translate "Import CSV" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="import-csv-form">
+    <h1>{{ title }}</h1>
+    <p>Upload a CSV file to import data. The first row should contain column headers.</p>
+    
+    {% if form.errors %}
+    <div class="errornote">
+        <p>Please correct the errors below:</p>
+        <ul>
+            {% for field in form %}
+                {% for error in field.errors %}
+                <li>{{ field.label }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            <label for="{{ form.csv_file.id_for_label }}">{{ form.csv_file.label }}:</label>
+            {{ form.csv_file }}
+            {% if form.csv_file.help_text %}
+            <p class="help">{{ form.csv_file.help_text }}</p>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <input type="submit" value="Upload and Import">
+            <a href=".." class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+    
+    <div class="csv-format-info">
+        <h2>CSV Format Information</h2>
+        
+        {% if opts.model_name == 'purchaseinvoice' %}
+        <p>Expected CSV format for Purchase Invoices:</p>
+        <pre>
+id,invoice_number,lot_number,date,net_total,payment_issuer_name,vendor_id,status,status_notes,product_name,quantity,price,damage,discount,rotten,loading_unloading,paid_amount
+1,MS2025R226,LOT-226,2023-04-15,0,Abdul Rafi,2,available,,Mango Banganapalli,2000,50,20,2,30,5,10000
+,,,,,,,,,,,,,,,,
+,,,,,,,,,Mango Totapuri,1500,45,15,2,25,5,
+,,,,,,,,,Mango Alphonso,500,120,5,0,10,5,
+        </pre>
+        <p><strong>Format Notes:</strong></p>
+        <ul>
+            <li>The first row contains the invoice header and first product</li>
+            <li>Additional product rows can be added with just the product details filled in</li>
+            <li>Empty rows between products are optional but help with readability</li>
+            <li>The paid_amount field is optional and will create a payment record if present</li>
+        </ul>
+        {% elif opts.model_name == 'salesinvoice' %}
+        <p>Expected CSV format for Sales Invoices:</p>
+        <pre>
+id,invoice_number,invoice_date,vehicle_number,gross_vehicle_weight,reference,no_of_crates,cost_per_crate,purchased_crates_quantity,purchased_crates_unit_price,vendor_id
+4,SA2025S01,2025-03-30,0,0.00,,775.00,24.00,125.00,40.00,1
+7,SA2025S02,2025-04-07,RJ 09 GE 3280,11310.00,,773.00,35.00,773.00,75.00,2
+        </pre>
+        {% endif %}
+        
+        <p>Notes:</p>
+        <ul>
+            <li>Date format should be YYYY-MM-DD</li>
+            <li>The vendor_id field should contain the ID of an existing vendor/customer</li>
+            <li>Numeric values should use period (.) as decimal separator</li>
+            <li>If a record with the same invoice_number already exists, it will be updated</li>
+            <li>The 'id' field is optional and will be auto-generated for new records</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+    .import-csv-form {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .csv-format-info {
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    pre {
+        background-color: #f5f5f5;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow-x: auto;
+    }
+    .button.cancel-link {
+        background-color: #f44336;
+        color: white;
+        padding: 10px 15px;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+</style>
+{% endblock %} 

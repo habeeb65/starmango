@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Business Not Found - Star Mango{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="mb-0">Business Not Found</h2>
+                </div>
+                <div class="card-body p-5">
+                    <h4 class="mb-4">Oops! The business you're looking for doesn't exist.</h4>
+                    
+                    <p class="lead mb-4">
+                        The URL you're trying to access doesn't correspond to any registered business in our system.
+                    </p>
+                    
+                    <div class="mb-4">
+                        <h5>What could have happened?</h5>
+                        <ul class="list-group list-group-flush text-start">
+                            <li class="list-group-item">The business URL may have been typed incorrectly</li>
+                            <li class="list-group-item">The business might have been removed or renamed</li>
+                            <li class="list-group-item">You might not have permission to access this business</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'tenants:tenant_list' %}" class="btn btn-outline-primary me-2">View Available Businesses</a>
+                        <a href="{% url 'tenants:register_tenant' %}" class="btn btn-primary">Register New Business</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

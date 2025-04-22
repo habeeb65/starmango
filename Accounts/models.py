@@ -4,11 +4,25 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.contrib.auth.models import User
+from django_multitenant.mixins import TenantModelMixin
+from django_multitenant.models import TenantManagerMixin
+from tenants.models import Tenant
 
-class PurchaseVendor(models.Model):
+# Create tenant manager
+class TenantManager(TenantManagerMixin, models.Manager):
+    pass
+
+class PurchaseVendor(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     name = models.CharField(max_length=100)
     contact_number = models.CharField(max_length=15)
     area = models.CharField(max_length=100)
+
+    objects = TenantManager()
+    
+    class Meta:
+        unique_together = (('tenant', 'name'),)
 
     def __str__(self):
         return self.name
@@ -68,9 +82,11 @@ class Payment(models.Model):
         return f"Payment of ₹{self.amount} for Invoice {self.invoice.invoice_number}"
 
 
-class PurchaseInvoice(models.Model):
-    invoice_number = models.CharField(max_length=20, unique=True, editable=False)
-    lot_number = models.CharField(max_length=10, unique=True, editable=False)
+class PurchaseInvoice(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True)
+    tenant_id = 'tenant_id'
+    invoice_number = models.CharField(max_length=20, editable=False)
+    lot_number = models.CharField(max_length=10, editable=False)
     date = models.DateField(default=date.today)
     vendor = models.ForeignKey('PurchaseVendor', on_delete=models.CASCADE, related_name='invoices')
     net_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -81,6 +97,14 @@ class PurchaseInvoice(models.Model):
         null=True
     )
     
+    objects = TenantManager()
+    
+    class Meta:
+        verbose_name = "Lot"
+        verbose_name = "Purchase Invoice"  # Singular name
+        verbose_name_plural = "Purchase Invoices"  # Plural name
+        unique_together = (('tenant', 'invoice_number'), ('tenant', 'lot_number'))
+
     def save(self, *args, **kwargs):
         # --- Generate invoice_number if not set (only for new objects) ---
         if not self.invoice_number and self.pk is None:
@@ -172,10 +196,7 @@ class PurchaseInvoice(models.Model):
             available = purchase_product.quantity - sold
             products[purchase_product.product.name] = available
         return products
-    class Meta:
-        verbose_name = "Lot"
-        verbose_name = "Purchase Invoice"  # Singular name
-        verbose_name_plural = "Purchase Invoices"  # Plural name
+
 class Purchase(models.Model):
     invoice = models.OneToOneField(PurchaseInvoice, on_delete=models.CASCADE, related_name='purchase_invoice')
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -188,8 +209,15 @@ class Purchase(models.Model):
         return f"Purchase for Invoice {self.invoice.invoice_number}"
 
 
-class Product(models.Model):
+class Product(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     name = models.CharField(max_length=100)
+    
+    objects = TenantManager()
+    
+    class Meta:
+        unique_together = (('tenant', 'name'),)
 
     def __str__(self):
         return self.name
@@ -296,8 +324,10 @@ class PurchaseProduct(models.Model):
         return f"{self.serial_number}. {self.product.name} in Invoice {self.invoice.invoice_number}"
 
 
-class SalesInvoice(models.Model):
-    invoice_number = models.CharField(max_length=20, unique=True, editable=False)
+class SalesInvoice(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
+    invoice_number = models.CharField(max_length=20, editable=False)
     invoice_date = models.DateField(default=date.today)
     vendor = models.ForeignKey('Customer', on_delete=models.PROTECT, related_name='sales_invoices')
     
@@ -338,6 +368,11 @@ class SalesInvoice(models.Model):
                                                   verbose_name="No of Purchased Crates")
     purchased_crates_unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, null=True,
                                                     verbose_name="Purchased price per crate (₹)")
+    
+    objects = TenantManager()
+    
+    class Meta:
+        unique_together = (('tenant', 'invoice_number'),)
     
     def save(self, *args, **kwargs):
         # Auto-generate invoice number if not set.
@@ -495,7 +530,9 @@ class SalesPayment(models.Model):
     def __str__(self):
         return f"Payment of ₹{self.amount} for Sales Invoice {self.invoice.invoice_number}"
     
-class Customer(models.Model):
+class Customer(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     name = models.CharField(max_length=100)
     contact_number = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
@@ -505,6 +542,11 @@ class Customer(models.Model):
         default=0,
         help_text="Maximum credit limit allowed (0 means no specific limit)"
     )
+    
+    objects = TenantManager()
+    
+    class Meta:
+        unique_together = (('tenant', 'name'),)
     
     def __str__(self):
         return self.name
@@ -536,7 +578,9 @@ class Customer(models.Model):
         else:
             return "Within Limit"
 
-class Expense(models.Model):
+class Expense(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     date = models.DateField()
     paid_by = models.CharField(max_length=100)
     paid_to = models.CharField(max_length=100)
@@ -545,9 +589,15 @@ class Expense(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    objects = TenantManager()
+    
     def __str__(self):
         return f"{self.date} - {self.paid_to} - ₹{self.amount}"
-class Damages(models.Model):
+
+class Damages(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     date = models.DateField()
     name = models.CharField(max_length=100)
     due_to = models.CharField(max_length=100)
@@ -556,14 +606,19 @@ class Damages(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    objects = TenantManager()
+    
     def __str__(self):
         return f"{self.date} - {self.due_to} - ₹{self.amount_loss}"
     class Meta:
         verbose_name = "Damage"  # Singular form
         verbose_name_plural = "Damages"  # Explicitly set plural name
 
-class SalesLot(models.Model):
+class SalesLot(TenantModelMixin, models.Model):
     """Tracks which lots (from purchase invoices) are used in a sales invoice"""
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     sales_invoice = models.ForeignKey(
         'SalesInvoice', 
         on_delete=models.CASCADE,
@@ -581,8 +636,10 @@ class SalesLot(models.Model):
         help_text="Quantity used from this lot (in kgs)"
     )
 
+    objects = TenantManager()
+
     class Meta:
-        unique_together = ('sales_invoice', 'purchase_invoice')  # Prevent duplicates
+        unique_together = ('tenant', 'sales_invoice', 'purchase_invoice')  # Prevent duplicates
 
     def __str__(self):
         return f"{self.quantity}kg from {self.purchase_invoice.lot_number}"
@@ -639,10 +696,14 @@ class SalesLot(models.Model):
         if self.pk and hasattr(self, 'quantity'):
             self._loaded_quantity = self.quantity
 
-class Packaging_Invoice(models.Model):
+class Packaging_Invoice(TenantModelMixin, models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    tenant_id = 'tenant_id'
     no_of_crates = models.IntegerField(blank=True, null=True, verbose_name="No of Crates")
     cost_per_crate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True,
                                         verbose_name="Packaging cost per crate (₹)")
+    
+    objects = TenantManager()
 
     @property
     def packaging_total(self):
