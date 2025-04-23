@@ -72,6 +72,7 @@ class PaymentInline(admin.TabularInline):
 
 class PurchaseInvoiceResource(resources.ModelResource):
     # Define fields with explicit column mappings matching the actual CSV headers
+    id = fields.Field(column_name='id', attribute='id')
     invoice_number = fields.Field(column_name='invoice_number', attribute='invoice_number')
     lot_number = fields.Field(column_name='lot_number', attribute='lot_number')
     date = fields.Field(
@@ -86,10 +87,10 @@ class PurchaseInvoiceResource(resources.ModelResource):
     
     class Meta:
         model = PurchaseInvoice
-        import_id_fields = ('invoice_number',)
+        import_id_fields = ('id',)
         skip_unchanged = True
         report_skipped = True
-        fields = ('invoice_number', 'lot_number', 'date', 'net_total', 'vendor')
+        fields = ('id', 'invoice_number', 'lot_number', 'date', 'net_total', 'vendor')
         export_order = fields
     
     def before_import_row(self, row, **kwargs):
