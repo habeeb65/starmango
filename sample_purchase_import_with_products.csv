@@ -1,7 +1,0 @@
-id,invoice_number,lot_number,date,net_total,payment_issuer_name,vendor_id,status,status_notes,product_name,quantity,price,damage,discount,rotten,loading_unloading,paid_amount
-1,MS2025R226,LOT-226,2023-04-15,0,Abdul Rafi,2,available,,Mango Banganapalli,2000,50,20,2,30,5,10000
-,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,
-,,,,,,,,,Mango Totapuri,1500,45,15,2,25,5,
-,,,,,,,,,,,,,,,,
-,,,,,,,,,Mango Alphonso,500,120,5,0,10,5, 

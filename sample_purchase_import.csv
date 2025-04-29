@@ -1,4 +1,0 @@
-id,invoice_number,lot_number,date,net_total,payment_issuer_name,vendor_id,status,status_notes
-1,MS2025R10,LOT-10,2023-06-15,15000.00,Abdul Rafi,2,available,
-2,MS2025R11,LOT-11,2023-06-16,22500.00,Abdul Rafi,3,available,
-3,MS2025R12,LOT-12,2023-06-17,18200.00,Sadiq,4,available, 
