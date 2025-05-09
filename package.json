@@ -1,0 +1,26 @@
+{
+  "name": "starmango-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/webapp",
+    "packages/webapp-libs/*"
+  ],
+  "scripts": {
+    "dev:frontend": "cd packages/webapp && npm run dev",
+    "build:frontend": "cd packages/webapp && npm run build",
+    "dev:backend": "python manage.py runserver",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "setup": "npm install && npm run setup:webapp",
+    "setup:webapp": "cd packages/webapp && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.13.8",
+    "@chakra-ui/icons": "^2.2.4",
+    "framer-motion": "^12.10.0",
+    "uuid": "^11.1.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "StarMango SaaS",
+  "short_name": "StarMango",
+  "description": "Multi-tenant SaaS application for inventory management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3182ce",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

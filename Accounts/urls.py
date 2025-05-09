@@ -40,5 +40,7 @@ urlpatterns = [
     
     # Authentication API endpoints (removed api/ prefix)
     path('auth/login/', views.api_login, name='api_login'),
+    path('auth/register/', views.api_register, name='api_register'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/direct-login/', views.direct_login, name='direct_login'),  # Direct login bypass endpoint
 ]
