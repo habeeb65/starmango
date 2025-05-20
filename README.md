@@ -1,115 +1,203 @@
 # Starmango
 
-<<<<<<< HEAD
-A modern web application built with Django and React, following a monorepo structure.
-=======
-A comprehensive multi-tenant SaaS application for wholesale fruit and vegetable businesses, focusing on inventory management, sales tracking, and financial reporting.
+A comprehensive multi-tenant SaaS application for wholesale fruit and vegetable businesses, focusing on inventory management, sales tracking, financial reporting, and advanced analytics.
 
 ## Project Overview
 
 Starmango is a specialized ERP system designed for fruit and vegetable wholesalers, particularly those dealing with mangoes. The application allows multiple businesses to operate independently on the same platform through its multi-tenant architecture. Each business (tenant) has its own isolated data and users, ensuring complete separation of business operations.
 
+## Latest Enhancements
+
+### 1. Mobile Responsiveness and PWA Support
+- Progressive Web App (PWA) capabilities for offline access
+- Responsive design for all device sizes
+- Mobile-first UI components
+- App installation prompts for mobile users
+
+### 2. Advanced Analytics and Reporting
+- Comprehensive business analytics dashboard
+- Customizable reports with multiple export formats (PDF, Excel, CSV)
+- Scheduled report generation and delivery
+- Visual data representation with charts and graphs
+
+### 3. Inventory Forecasting and Optimization
+- AI-powered inventory forecasting
+- Multiple forecasting models (Moving Average, Exponential Smoothing, etc.)
+- Inventory optimization rules and alerts
+- Stockout and overstock prevention
+
+### 4. Enhanced Multi-tenancy Features
+- Customizable tenant branding and UI
+- Tenant-specific feature flags
+- Subscription plan management
+- Localization settings per tenant
+
+## Project Structure
+
+The Starmango project follows a modular architecture with separated frontend and backend:
+
+```
+starmango/
+├── frontend/                 # React frontend application
+│   └── webapp/               # Main React application with Vite
+│       ├── src/              # React source code
+│       ├── public/           # Static assets
+│       └── package.json      # Frontend dependencies
+├── Mango_project/            # Django project settings
+├── Accounts/                 # Authentication and user management
+├── analytics/                # Business analytics and reporting
+├── forecasting/              # Inventory forecasting features
+├── tenants/                  # Multi-tenant core functionality
+├── inventory/                # Inventory management
+├── manage.py                 # Django management script
+├── requirements.txt          # Backend dependencies
+├── setup_and_run.bat         # Setup script for Windows
+└── run_first.bat             # Initial dependency installation script
+```
+
 ## Tech Stack
 
-- **Backend**: Django 
+- **Backend**: Django with Django REST Framework
 - **Frontend**: React with Chakra UI
 - **Database**: Supports SQLite (development) and PostgreSQL (production)
-- **Authentication**: Django's built-in authentication with custom multi-tenant extensions
+- **Authentication**: Django's built-in authentication with JWT and custom multi-tenant extensions
 - **Multi-tenancy**: Custom implementation using django-multitenant
 - **Admin Interface**: Django Admin with Jazzmin for improved UI/UX
+- **Analytics**: Pandas, Matplotlib for data processing and visualization
+- **Forecasting**: Statistical models with NumPy and SciPy
+- **PWA Support**: Service workers, workbox, and manifest.json
 - **API**: Django REST Framework for backend API endpoints
-- **Deployment**: Supports standard Django deployment options
+- **Real-time Features**: Django Channels for WebSockets
+- **Security**: Two-factor authentication, django-axes for brute force protection
+- **Deployment**: Vercel for frontend, separate backend deployment
 
-## Multi-Tenant Architecture
+## Setup and Installation
 
-Starmango implements a multi-tenant architecture where each business operates in isolation:
+### Prerequisites
 
-### Tenant Model
+- Python 3.12
+- Node.js 18+ and npm
+- Git
 
-```python
-class Tenant(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
-    business_type = models.CharField(max_length=50, choices=[
-        ('mango', 'Mango Wholesaler'),
-        ('vegetable', 'Vegetable Wholesaler'),
-        ('fruit', 'Mixed Fruit Wholesaler'),
-    ], default='mango')
-    logo = models.ImageField(upload_to='tenant_logos/', null=True, blank=True)
-    primary_color = models.CharField(max_length=7, default='#00897B')
+### Local Development Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/starmango.git
+   cd starmango
+   ```
+
+2. **Run the setup script for dependencies**
+   
+   For Windows:
+   ```bash
+   run_first.bat
+   ```
+
+   For Linux/Mac:
+   ```bash
+   # Create virtual environment
+   python -m venv venv
+   source venv/bin/activate
+
+   # Install dependencies
+   pip install -r requirements.txt
+   pip install django-filter django-admin-tools drf-yasg channels django-import-export
+   ```
+
+3. **Start the development servers**
+
+   For the complete stack:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+   This will start both the Django backend server and React frontend with Vite.
+
+## Deployment on Vercel
+
+The Starmango project is structured to support deployment on Vercel with a separated backend, following modern best practices for SaaS applications.
+
+### Frontend Deployment (Vercel)
+
+1. **Prepare your frontend for Vercel**
+
+   Create or update `frontend/webapp/vercel.json`:
+   ```json
+   {
+     "rewrites": [
+       { "source": "/(.*)", "destination": "/index.html" }
+     ],
+     "buildCommand": "npm run build",
+     "outputDirectory": "dist",
+     "framework": "vite",
+     "installCommand": "npm install"
+   }
+   ```
+
+2. **Update API endpoints**
+   
+   Ensure your frontend API calls use environment variables for the backend URL:
+   
+   In your `.env` file:
+   ```
+   VITE_API_URL=https://your-backend-url.com/api
+   ```
+
+3. **Deploy to Vercel**
+   
+   ```bash
+   cd frontend/webapp
+   vercel --prod
+   ```
+
+### Backend Deployment Options
+
+For the Django backend, you have several options:
+
+1. **Separate server (recommended)**
+   - Deploy on a VPS, AWS, or similar service
+   - Set up with Gunicorn/uWSGI and Nginx
+   - Configure appropriate environment variables
+
+2. **Serverless approach**
+   - Use Django Ninja or FastAPI for a more serverless-friendly API
+   - Deploy as serverless functions (AWS Lambda, etc.)
+
+3. **Containerization**
+   - Create a Dockerfile for the project
+   - Deploy using Docker to services like DigitalOcean, Heroku, or Render
+
+## Environmental Variables
+
+Configure these environment variables for your deployment:
+
+```
+# Django settings
+SECRET_KEY=your-secret-key
+DEBUG=False
+ALLOWED_HOSTS=your-backend-domain.com
+
+# Database config
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Frontend URL for CORS
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain.vercel.app
+
+# JWT settings
+JWT_EXPIRATION_DELTA=3600
 ```
 
-### UserProfile Model
+## Multi-Tenant Considerations for Deployment
 
-Each user is linked to a specific tenant through the UserProfile:
+When deploying a multi-tenant application, consider these best practices:
 
-```python
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    is_tenant_admin = models.BooleanField(default=False)
-```
-
-### Tenant Settings
-
-Each tenant can customize their business features:
-
-```python
-class TenantSettings(models.Model):
-    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, related_name='settings')
-    enable_purchase_management = models.BooleanField(default=True)
-    enable_sales_management = models.BooleanField(default=True)
-    enable_credit_dashboard = models.BooleanField(default=True)
-    dashboard_layout = models.CharField(max_length=20, default='standard')
-```
-
-## Signup and Account Creation Flow
-
-1. New business owners register through a signup form
-2. System creates:
-   - A new Tenant record with a unique slug
-   - An admin user (superuser) for the tenant
-   - A UserProfile linking the admin to the tenant
-   - Default TenantSettings
-   - Initial sample data (products, customers, vendors) based on business type
-
-```python
-def register_tenant(request):
-    """Register a new tenant with admin user"""
-    if request.method == 'POST':
-        form = TenantRegistrationForm(request.POST)
-        if form.is_valid():
-            # Create tenant
-            tenant = Tenant.objects.create(
-                name=form.cleaned_data['business_name'],
-                slug=form.cleaned_data['slug'],
-                business_type=form.cleaned_data['business_type']
-            )
-            
-            # Create admin user for tenant
-            admin_user = User.objects.create_user(
-                username=form.cleaned_data['username'],
-                email=form.cleaned_data['email'],
-                password=form.cleaned_data['password'],
-                is_staff=True
-            )
-            
-            # Create tenant profile to link user to tenant
-            UserProfile.objects.create(
-                user=admin_user,
-                tenant=tenant,
-                is_tenant_admin=True
-            )
-```
-
-## Admin Access Structure
-
-Starmango uses Django's admin interface enhanced with Jazzmin for a modern UI. The admin experience is tenant-aware:
-
-1. Super-admin can access all tenants' data
-2. Tenant admins can only access their own tenant's data
-3. TenantMiddleware ensures proper tenant context in admin views
-4. Admin interfaces provide custom filters and actions for tenant-specific data
+1. **Database Isolation**: Ensure proper tenant isolation in your database
+2. **Caching Strategy**: Implement tenant-aware caching
+3. **Asset Storage**: Separate tenant files in storage systems
+4. **Performance Monitoring**: Monitor per-tenant resource usage
+5. **Backup Strategy**: Implement tenant-specific backup procedures
 
 ## Key Features
 
@@ -121,6 +209,14 @@ Starmango uses Django's admin interface enhanced with Jazzmin for a modern UI. T
   - Quantity, price, damage, discount, rotten percentage
   - Net weight calculations
   - Payment tracking
+- **Inventory Forecasting**: Predict future inventory needs
+  - Multiple forecasting models (Moving Average, Exponential Smoothing, ARIMA, Prophet, LSTM)
+  - Accuracy metrics and model comparison
+  - Visualization of forecast trends
+- **Inventory Optimization**: Optimize inventory levels
+  - Automatic reorder point calculation
+  - Safety stock recommendations
+  - Stockout and overstock alerts
 
 ### Sales Management
 
@@ -137,9 +233,21 @@ Starmango uses Django's admin interface enhanced with Jazzmin for a modern UI. T
 - **Payment Attachments**: Upload receipts/proofs of payment
 - **Credit Dashboard**: Monitor outstanding balances
 
-### Reporting
+### Analytics and Reporting
 
-- **CSV Export**: Export data to CSV for external analysis
+- **Advanced Analytics**: Comprehensive business intelligence
+  - Sales trends and patterns
+  - Inventory turnover analysis
+  - Vendor performance metrics
+  - Customer buying patterns
+- **Customizable Reports**: Create and save custom report configurations
+  - Multiple export formats (PDF, Excel, CSV)
+  - Scheduled report generation
+  - Email delivery of reports
+- **Interactive Dashboards**: Visual representation of business data
+  - Customizable widgets and layouts
+  - Real-time data updates
+  - Drill-down capabilities
 - **Financial Reports**: Track profits, losses, and inventory value
 - **Customer Statements**: Generate customer account statements
 - **Vendor Statements**: Track payments to vendors
@@ -150,6 +258,17 @@ Starmango uses Django's admin interface enhanced with Jazzmin for a modern UI. T
 - **Damages/Losses**: Track inventory losses and damages
 - **Multi-user Support**: Allow multiple users per tenant with different permissions
 - **Packaging**: Track packaging costs and crates
+- **Mobile Access**: Access the system from any device
+  - Progressive Web App (PWA) for offline capabilities
+  - Responsive design for all screen sizes
+  - Touch-optimized interface
+- **Real-time Notifications**: Stay informed about important events
+  - Inventory alerts
+  - Payment notifications
+  - System updates
+  - Custom alert thresholds
+- **Multi-language Support**: Localized interface for different regions
+- **Data Export/Import**: Flexible data exchange options
 
 ## Database Structure
 
@@ -176,39 +295,20 @@ class Product(TenantModelMixin, models.Model):
 
 ```
 starmango/
-│   ├── webapp/            # Main React application
-│   └── webapp-libs/       # Shared frontend libraries
-├── config/                # Configuration files
-├── scripts/               # Utility scripts
-├── docs/                  # Documentation
-└── ...
-```
-
-## Prerequisites
-
-- Node.js (v18+)
-- Python (3.9+)
-- pip (Python package manager)
-- npm or yarn (Node.js package manager)
-
-## Getting Started
-
-### Backend Setup
-
-1. Create and activate a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-2. Install Python dependencies:
-=======
 ├── Accounts/               # Core business logic app
 │   ├── admin.py           # Admin panel configuration
 │   ├── admin_csv.py       # CSV export functionality
 │   ├── models.py          # Business models (Products, Invoices, etc.)
 │   ├── views.py           # Business logic views
 │   └── templates/         # Business-specific templates
+├── analytics/             # Analytics and reporting app
+│   ├── models.py          # Report models and configurations
+│   ├── reports.py         # Report generation logic
+│   └── templates/         # Report templates
+├── forecasting/           # Inventory forecasting app
+│   ├── models.py          # Forecasting models and configurations
+│   ├── forecasting.py     # Forecasting algorithms
+│   └── templates/         # Forecasting templates
 ├── Mango_project/         # Project settings
 │   ├── settings.py        # Django settings
 │   ├── urls.py            # Main URL configuration
@@ -220,6 +320,9 @@ starmango/
 │   ├── middleware.py      # Tenant context middleware
 │   ├── models.py          # Tenant, UserProfile, and TenantSettings models
 │   └── views.py           # Tenant management views
+├── notifications/         # Notification system
+│   ├── models.py          # Notification models
+│   └── consumers.py       # WebSocket consumers
 ├── templates/             # Global templates
 │   └── admin/             # Admin template overrides
 ├── static/                # Static files (CSS, JS, images)
@@ -227,6 +330,15 @@ starmango/
 ├── manage.py              # Django management script
 └── requirements.txt       # Python dependencies
 ```
+
+## Prerequisites
+
+- Node.js (v18+)
+- Python (3.9+)
+- pip (Python package manager)
+- npm or yarn (Node.js package manager)
+- PostgreSQL (recommended for production)
+- Redis (for WebSockets and caching)
 
 ## Installation and Setup
 
@@ -245,113 +357,56 @@ starmango/
    ```
 
 3. Install Python dependencies:
->>>>>>> ef945993c546fefe7b15c21217d8b8fca874a3dc
    ```bash
    pip install -r requirements.txt
    ```
 
-<<<<<<< HEAD
-3. Set up the database:
-=======
-4. Run migrations:
->>>>>>> ef945993c546fefe7b15c21217d8b8fca874a3dc
+4. Install additional packages for analytics and forecasting:
+   ```bash
+   pip install pandas matplotlib numpy scipy
+   ```
+
+5. Run migrations:
    ```bash
    python manage.py migrate
    ```
 
-<<<<<<< HEAD
-4. Create a superuser (optional):
-=======
-5. Create a superuser (platform admin):
->>>>>>> ef945993c546fefe7b15c21217d8b8fca874a3dc
+6. Create a superuser (platform admin):
    ```bash
    python manage.py createsuperuser
    ```
 
-<<<<<<< HEAD
-=======
-6. Run the development server:
+7. Run the development server:
    ```bash
    python manage.py runserver
    ```
 
->>>>>>> ef945993c546fefe7b15c21217d8b8fca874a3dc
 ### Frontend Setup
 
 1. Install Node.js dependencies:
    ```bash
-<<<<<<< HEAD
-   npm install
-   ```
-
-2. Install frontend workspace dependencies:
-   ```bash
-   npm run setup:webapp
-   ```
-
-## Development
-
-### Running the Development Servers
-
-- Backend only:
-  ```bash
-  npm run dev:backend
-  ```
-
-- Frontend only:
-  ```bash
-  npm run dev:frontend
-  ```
-
-- Both frontend and backend (recommended):
-  ```bash
-  npm run dev
-  ```
-
-## Building for Production
-
-```bash
-# Build frontend assets
-npm run build:frontend
-
-# Collect static files
-python manage.py collectstatic --noinput
-```
-
-## Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
-```
-# Django
-SECRET_KEY=your-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Database
-DB_NAME=starmango
-DB_USER=user
-DB_PASSWORD=password
-DB_HOST=localhost
-DB_PORT=5432
-
-# Frontend
-VITE_API_BASE_URL=http://localhost:8000
-```
-=======
    cd frontend/webapp
    npm install
    ```
 
-2. Start the development server:
+2. Install PWA and mobile support packages:
+   ```bash
+   npm install workbox-window react-pwa-install vite-plugin-pwa
+   ```
+
+3. Start the development server:
    ```bash
    npm run dev
    ```
 
-3. For full-stack development, run both servers:
+4. For full-stack development, run both servers:
    ```bash
    # In one terminal (from project root)
-   npm run dev  # Uses the script in root package.json to run both servers
+   python manage.py runserver
+   
+   # In another terminal
+   cd frontend/webapp
+   npm run dev
    ```
 
 ## Development Workflow
@@ -413,24 +468,17 @@ The Starmango API is built with Django REST Framework and follows RESTful princi
 1. **Tenant context errors**: Ensure middleware is properly configured
 2. **Missing tenant in queries**: Verify TenantManager is being used
 3. **User access issues**: Check UserProfile tenant association
->>>>>>> ef945993c546fefe7b15c21217d8b8fca874a3dc
+4. **Forecasting errors**: Ensure required Python packages are installed (pandas, numpy, matplotlib)
+5. **PWA not working**: Check service worker registration and manifest.json configuration
+6. **Analytics not displaying**: Verify data access permissions and database connections
+7. **Mobile responsiveness issues**: Test with different device sizes and orientations
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-<<<<<<< HEAD
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-=======
 3. Submit a pull request
 
 ## License
 
-This project is proprietary and confidential. Unauthorized use, reproduction, or distribution is prohibited.
->>>>>>> ef945993c546fefe7b15c21217d8b8fca874a3dc
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

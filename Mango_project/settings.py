@@ -72,6 +72,19 @@ INSTALLED_APPS = [
     'corsheaders',
     'import_export',
     'tenants',
+    'notifications.apps.NotificationsConfig',
+    'analytics.apps.AnalyticsConfig',
+    'forecasting.apps.ForecastingConfig',
+    # API Documentation
+    # 'drf_yasg',  # Commented out to avoid dependency
+    # Security enhancements
+    # 'django_otp',  # Temporarily commented out
+    # 'django_otp.plugins.otp_totp',  # Temporarily commented out
+    # 'django_otp.plugins.otp_static',  # Temporarily commented out
+    # 'two_factor',  # Temporarily commented out
+    # 'axes',  # Temporarily commented out
+    # Real-time features
+    # 'channels',  # Temporarily commented out
 ]
 
 MIDDLEWARE = [
@@ -82,9 +95,16 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Two-factor authentication middleware
+    # 'django_otp.middleware.OTPMiddleware',  # Temporarily commented out
+    # Rate limiting and brute force protection
+    # 'axes.middleware.AxesMiddleware',  # Temporarily commented out
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Configure Axes to use the database as a cache backend
+# AXES_HANDLER = 'axes.handlers.database.AxesDatabaseHandler'  # Temporarily commented out
 
 
 TEMPLATES = [
@@ -107,6 +127,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'Mango_project.wsgi.application'
+# ASGI_APPLICATION = 'Mango_project.asgi.application'  # Temporarily commented out
+
+# Channel layers for WebSocket support
+# CHANNEL_LAYERS = {  # Temporarily commented out
+#     'default': {
+#         'BACKEND': 'channels.layers.InMemoryChannelLayer',
+#     },
+# }
 
 
 # Database
@@ -176,9 +204,31 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day'
+    }
 }
+
+# Import JWT settings
+from .security import SIMPLE_JWT
+
+# Two-factor authentication settings
+# TWO_FACTOR_PATCH_ADMIN = True  # Temporarily commented out
 
 #Manually Added
 STATICFILES_DIRS = [
