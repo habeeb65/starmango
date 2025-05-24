@@ -1,9 +1,13 @@
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from django.utils.text import slugify
+import random
+import string
 
 from tenants.models import Tenant, UserProfile, TenantSettings
 from .serializers import (
@@ -117,6 +121,95 @@ class UserRegistrationView(generics.CreateAPIView):
         
         return Response({
             'user': UserProfileSerializer(user.profile).data,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=status.HTTP_201_CREATED)
+
+
+class CreateTenantView(APIView):
+    """
+    API endpoint for creating a new tenant and associated admin user.
+    This endpoint does not require authentication as it's used during signup.
+    """
+    permission_classes = []  # Allow unauthenticated access
+    
+    def post(self, request, *args, **kwargs):
+        # Validate input data
+        if not request.data.get('name'):
+            return Response(
+                {'error': 'Tenant name is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not request.data.get('email') or not request.data.get('password'):
+            return Response(
+                {'error': 'Email and password are required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant_name = request.data.get('name')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        
+        # Generate a unique slug based on the tenant name
+        base_slug = slugify(tenant_name)
+        slug = base_slug
+        
+        # If the slug already exists, add a random string to make it unique
+        if Tenant.objects.filter(slug=slug).exists():
+            # Add a random 5-character alphanumeric suffix
+            suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
+            slug = f"{base_slug}-{suffix}"
+            
+            # In the very unlikely case this still exists, keep trying
+            while Tenant.objects.filter(slug=slug).exists():
+                suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
+                slug = f"{base_slug}-{suffix}"
+        
+        # Create tenant with the unique slug
+        tenant = Tenant.objects.create(
+            name=tenant_name,
+            slug=slug,
+            business_type=request.data.get('business_type', 'mango'),
+            contact_email=email,
+            primary_color=request.data.get('primary_color', '#00897B')
+        )
+        
+        # Create Django admin user (with staff and superuser permissions)
+        username = email.split('@')[0]
+        
+        # Handle username conflicts by adding numbers if needed
+        base_username = username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+            
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            is_staff=True,  # Allow access to Django admin
+            is_superuser=True  # Full superuser permissions
+        )
+        
+        # Create user profile associated with tenant
+        profile = UserProfile.objects.create(
+            user=user,
+            tenant=tenant,
+            is_tenant_admin=True
+        )
+        
+        # Generate tokens for the new user
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'tenant': TenantSerializer(tenant).data,
+            'user': UserProfileSerializer(profile).data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)

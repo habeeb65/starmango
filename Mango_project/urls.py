@@ -112,10 +112,10 @@ urlpatterns = [
     
     path('admin/', admin.site.urls),
     path('accounts/', include('Accounts.urls')),
+    path('api/tenants/', include('tenants.urls', namespace='api_tenants')),  # Add tenant URLs under /api/ prefix with unique namespace (public endpoints)
     path('api/', include('Mango_project.api_urls')),  # Include API URLs with Swagger docs
     path('api/accounts/', include('Accounts.urls')),  # Include all Accounts URLs under /api/ as well
     path('tenants/', include('tenants.urls')),  # Add tenants URLs
-    path('api/tenants/', include('tenants.urls', namespace='api_tenants')),  # Add tenant URLs under /api/ prefix with unique namespace
     path('sales_invoice/<int:invoice_id>/pdf/', generate_sales_invoice_pdf, name='generate_sales_invoice_pdf'),
 ]
 

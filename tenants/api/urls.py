@@ -9,7 +9,8 @@ from .views import (
     TenantViewSet,
     UserProfileViewSet,
     TenantSettingsViewSet,
-    UserRegistrationView
+    UserRegistrationView,
+    CreateTenantView
 )
 
 router = DefaultRouter()
@@ -25,4 +26,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('register/', UserRegistrationView.as_view(), name='register'),
+    
+    # Tenant creation endpoint (public)
+    path('create-tenant/', CreateTenantView.as_view(), name='create_tenant'),
 ]

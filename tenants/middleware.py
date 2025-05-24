@@ -5,8 +5,8 @@ from .models import Tenant
 
 class TenantMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        # Skip tenant identification for admin URLs
-        if request.path.startswith('/admin/'):
+        # Skip tenant identification for admin URLs and API endpoints
+        if request.path.startswith('/admin/') or request.path.startswith('/api/'):
             return None
             
         tenant = None
@@ -32,4 +32,4 @@ class TenantMiddleware(MiddlewareMixin):
             except Tenant.DoesNotExist:
                 pass
 
-        return None 
+        return None
